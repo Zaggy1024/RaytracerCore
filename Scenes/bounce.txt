@@ -1,0 +1,130 @@
+size 700 700
+background 0 0 0 0
+recursion 20
+recursion 10
+#recursion 5
+#recursion 4
+
+debug off
+
+
+#dof 2e-1 5e2 camera
+camera 2.8 -2.8 -1, 0 0 -1, 0 0 -1, 90
+camera 1.9 -1.9 -1, 0 0 -1, 0 0 -1, 90
+camera 2.60 -1.75 -3.30, 0.1 0 0, 0 0 -1, 90
+camera -2.8 2.8 -1, 0 0 -1, 0 0 -1, 90
+
+camera 0 0 -4, 0 0 -1, -1 0 0, 120
+camera 1.9 0 -1.95, 0 0 -1.95, 0 0 -1, 90
+camera 0 0 1, 0 0 0, 1 0 0, 120
+
+output bounce.png
+
+point 0 0 -1.9 1 1 1
+
+
+# light box
+diffuse 0 0 0
+specular 0 0 0
+emission 5 5 5
+#cube 0 0 -1.95 .75 .75 0.1 not -z
+cube 0 0 -1.975 .5 1.5 0.05 not -z
+pushtransform
+translate 0 0 -1.95
+scale .75 .75 0.1
+#sphere 0 0 0 .5
+poptransform
+emission 0 0 0
+
+
+shininess 40
+
+twosided false
+
+cube 0 0 -1 4 4 2
+invert true
+
+# close right
+diffuse .1 1 .1
+specular .1 .35 .1
+instance -y
+
+# far left
+diffuse 1 .1 .1
+specular .35 .1 .1
+instance y
+
+# close left
+diffuse .9 .9 .9
+specular .2 .2 .2
+instance x
+
+# far right
+instance -x
+
+# ceiling
+instance -z
+
+# floor
+diffuse .4 .4 .9
+specular .4 .4 .9
+shininess 1e3
+instance z
+
+invert false
+
+
+# corner cutout
+twosided true
+diffuse .9 .9 .9
+specular .2 .2 .2
+cube -1.5 1 -1 1 2 2 only +x -y
+twosided false
+
+
+
+
+twosided true
+
+
+sphere -1 -1.25 -1 .5
+
+
+pushtransform
+translate 1.25 0 0
+rotate 0 0 1 45
+cube 0 0 -.375 .75 .75 .75 not +z
+poptransform
+
+# glass
+diffuse .1 .1 .1
+specular .6 .6 .6
+diffuse 0 0 0
+specular 0 0 0
+shininess 1e5
+refraction .9 .9 .9, 1.52
+
+# outside
+#sphere 1 -1.25 -.5 .5
+
+#cube 1 -1 -.37501 .75 .75 .75 all
+
+# inside
+invert true
+#sphere 1 -1.25 -.5 .45
+invert false
+
+# lens
+pushtransform
+translate 1 -1.25 -.5
+rotate 0 0 -1 45
+scale 0.25 1 1
+sphere 0 0 0 .5
+poptransform
+
+refraction off
+
+diffuse 0 0 0
+specular .9 .9 .9
+shininess 1e6
+sphere 0 0 -.5 .5

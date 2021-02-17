@@ -1,5 +1,5 @@
 # RaytracerCore
-A simple path tracer written in C#.
+A simple path tracer written in Visual C# using .NET Core.
 
 You may notice that RaytracerCore is a misnomer, this is because the project began as a ray tracer using phong reflection and multiple bounces per initial hit.
 
@@ -17,8 +17,15 @@ Materials are defined per-primitive through only the following values (no textur
 * *Refractive index:* Defined along with the transmission color, this will determine the distortion of rays entering and exiting an object.
 * *Shininess:* The amount that the surface normal will be randomized as rays reflecting or refracting exit it.
 
+Triangle/sphere intersection and matrix operations have separate implementations using scalar math or SIMD for faster calculation.
+
 ## Features
 There is a path trace inspector included to aid in debugging any issues with the implementation of the path tracer or its intersection algorithms.
+
+## Screenshots
+![The main interface](/Screenshots/app.png)
+![Cornell box](/Screenshots/bounce-with-lens.png)
+![Scene with die](/Screenshots/die.png)
 
 ## To do
 * Implement a BVH to accelerate ray tracing.

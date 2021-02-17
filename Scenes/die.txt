@@ -1,0 +1,87 @@
+size 1280 960
+background 0 0 0 0
+ambient color 0 0 0
+
+dof .1 1000 to 3
+
+camera -2 -2 2 0 0 -.25 1 1 2 60
+camera +2 +2 2 0 0 -.25 -1 -1 2 60
+camera -2 -2 -2 0 0 .25 -1 -1 2 60
+
+
+directional -2 2 2 .5 .4 .4
+point 2 0 2 .4 .4 .5
+
+#diffuse 0 0 0
+specular 0 0 0
+emission 10 8 8
+sphere -2 2 2 .5
+
+emission 8 8 10
+sphere 2 0 2 .5
+emission 0 0 0
+
+#cube to surround the scene for ambient bounce lighting
+diffuse .1 .1 .1
+invert true
+#cube 0 0 0 10 10 10 all
+invert false
+
+
+
+cube 0 0 0 2 2 2
+
+diffuse .9 0 .9
+specular .35 0 .35
+instance -y
+
+diffuse .5 1 .5
+specular .2 .4 .2
+instance +y
+
+diffuse 1 .5 .5
+specular .4 .2 .2
+instance +x
+
+diffuse 0 .7 .7
+specular 0 .2 .2
+instance -x
+
+diffuse .7 .7 0
+specular .2 .2 0
+instance -z
+
+diffuse .5 .5 1
+specular .2 .2 .4
+instance +z
+
+# Make spheres
+diffuse .9 .9 .9
+specular .5 .5 .5
+
+sphere 1 0 0 0.15
+
+sphere -.5 1 -.5 0.15
+sphere +.5 1 +.5 0.15
+
+sphere 0 0 1 0.15
+sphere -.5 -.5 1 0.15
+sphere +.5 +.5 1 0.15
+
+sphere -1 -.5 -.5 0.15
+sphere -1 -.5 +.5 0.15
+sphere -1 +.5 +.5 0.15
+sphere -1 +.5 -.5 0.15
+
+sphere -.5 -1 -.5 0.15
+sphere -.5 -1 +.5 0.15
+sphere +.5 -1 +.5 0.15
+sphere +.5 -1 -.5 0.15
+sphere  0  -1 0 0.15
+
+sphere -.5 -.5 -1 0.15
+sphere -.5   0 -1 0.15
+sphere -.5 +.5 -1 0.15
+sphere +.5 -.5 -1 0.15
+sphere +.5   0 -1 0.15
+sphere +.5 +.5 -1 0.15 

@@ -38,68 +38,8 @@ namespace RaytracerCore
 			Context = SynchronizationContext.Current;
 			Thread.CurrentThread.Priority = ThreadPriority.Highest;
 
-			//openSceneMenuItem_Click(null, null);
-
-			/*Random rand = new Random();
-			Stopwatch timerScalar = new Stopwatch();
-			Stopwatch timerVector = new Stopwatch();
-			Trace.WriteLine($"Accelerated: {Vec4D.SIMDDot}");
-
-			for (int r = 0; r < 6; r++)
-			{
-				if (r == 2)
-				{
-					timerScalar.Reset();
-					timerVector.Reset();
-				}
-
-				//Vec4D[] valueScalar = new Vec4D[20000000];
-				//Vec4D[] valueVector = new Vec4D[20000000];
-				double valueScalar = 0;
-				double valueVector = 0;
-
-				//Vec4D.SIMDDot = true;
-				for (int i = 0; i < 20000000; i++)
-				{
-					Vec4D left = Vec4D.CreateRandom(rand);
-					Vec4D right = Vec4D.CreateRandom(rand);
-					Vector256<double> leftYMM = (Vector256<double>)left;
-					Vector256<double> rightYMM = (Vector256<double>)right;
-					
-					timerScalar.Start();
-					Vec4D resA = Vec4D.Zero;
-					unsafe
-					{
-						valueScalar += Vec4D.Dot(&left, &right);
-					}
-					//res = left.Mult(right);
-					//resA = left.Cross(right);
-					timerScalar.Stop();
-					if (i == 0)
-						Trace.WriteLine($"Scalar value: <{resA.X}, {resA.Y}, {resA.Z}, {resA.W}>");
-					valueScalar += resA.SquareDistance;
-					
-					timerVector.Start();
-					Vector256<double> resB = Vector256.CreateScalarUnsafe(0D);
-					valueVector += AVXHelpers.Dot(leftYMM, rightYMM).ToScalar();
-					//res = left * right;
-					//resB = AVXHelpers.Cross(leftYMM, rightYMM);
-					timerVector.Stop();
-					if (i == 0)
-						Trace.WriteLine($"Vector value: {resB}");
-					valueVector += ((Vec4D)resB).SquareDistance;
-				}
-
-				//Trace.WriteLine($"Scalar value: {valueScalar.Take(5).Aggregate("", (v1, v2) => $"{v1}, {v2}")}");
-				//Trace.WriteLine($"Vector value: {valueVector.Take(5).Aggregate("", (v1, v2) => $"{v1}, {v2}")}");
-				Trace.WriteLine($"Scalar value: {valueScalar}");
-				Trace.WriteLine($"Vector value: {valueVector}");
-			}
-
-			Trace.WriteLine($"Scalar: {timerScalar.Elapsed}");
-			Trace.WriteLine($"Vector: {timerVector.Elapsed}");*/
-
 			numericExposure.Value = 1.0M;
+			UpdateBackgroundColor();
 		}
 
 		private void UpdateImage(Bitmap bitmap)
@@ -297,12 +237,17 @@ namespace RaytracerCore
 			//UpdateCurrentImage();
 		}
 
-		private void textBackground_TextChanged(object sender, EventArgs e)
+		private void UpdateBackgroundColor()
 		{
 			if (int.TryParse(textBackground.Text, NumberStyles.HexNumber, CultureInfo.CurrentCulture, out int result))
 			{
 				panelPreview.BackColor = Color.FromArgb(result);
 			}
+		}
+
+		private void textBackground_TextChanged(object sender, EventArgs e)
+		{
+			UpdateBackgroundColor();
 		}
 
 		private void buttonReload_Click(object sender, EventArgs e)
