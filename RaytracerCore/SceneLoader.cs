@@ -26,23 +26,23 @@ namespace RaytracerCore
 
 	public class SceneLoader
 	{
+		[ThreadStatic]
 		private static IEnumerator<string> paramEnum;
 
-		private static MatrixStack stack;		// Transform stack
+		[ThreadStatic]
+		private static MatrixStack stack;       // Transform stack
+		[ThreadStatic]
 		private static MatrixStack invStack;    // Inverse transforms
 
-		private static readonly Regex lineRegex = new Regex("^([^#]*)(?:#.*)?", RegexOptions.IgnoreCase);
-		private static readonly Regex splitRegex = new Regex("[, ]+", RegexOptions.IgnoreCase);
-
-		private static string[] GetValues(string line)
-		{
-			line = lineRegex.Match(line).Captures[0].Value;
-			return splitRegex.Split(line).Where((p) => p.Length > 0).ToArray();
-		}
+		private static readonly Regex lineRegex = new Regex("^\\s*(?:(\\w+)(?:\\s+([^\\s,#]+)(?:\\s*,?\\s+([^\\s,#]+))*)?)?\\s*(?:#.*)?$", RegexOptions.IgnoreCase);
+		//                                                    ^-leading spaces      ^-first param                             ^-comment
+		//                                                            ^-cmd name                           ^-repeated params
 
 		private static string Next()
 		{
-			paramEnum.MoveNext();
+			if (!paramEnum.MoveNext())
+				throw new IndexOutOfRangeException("A parameter was missing from a command.");
+
 			return paramEnum.Current;
 		}
 
@@ -158,30 +158,23 @@ namespace RaytracerCore
 				while (!reader.EndOfStream)
 				{
 					string line = reader.ReadLine();
+					var lineMatched = lineRegex.Match(line);
 
-					line = line.Trim();
+					if (!lineMatched.Success)
+						throw new Exception("Line did not match expected format.");
 
-					int index = line.IndexOf(' ');
-					string cmd = null;
-
-					if (index != -1)
-						cmd = line.Substring(0, index);
-					else if (line.Length > 0)
-						cmd = line;
-
-					if (cmd != null && cmd[0] != '#')
+					// Line is blank
+					if (lineMatched.Groups[1].Captures.Count > 0)
 					{
-						cmd = cmd.ToLower();
+						// Grab the command name from the first capture group.
+						string cmd = lineMatched.Groups[1].Value.ToLowerInvariant();
 
-						string paramsStr = "";
+						// Pull all the parameters from the matched groups after the command name.
+						paramEnum = lineMatched.Groups.Values.Skip(2).SelectMany((g) => g.Captures).Select((c) => c.Value).GetEnumerator();
 
-						if (index != -1)
-							paramsStr = line.Substring(index + 1);
-
-						string[] cmdParams = GetValues(paramsStr);
-						paramEnum = cmdParams.AsEnumerable().GetEnumerator();
-
+#if !DEBUG
 						try
+#endif
 						{
 							Vec4D pos;
 
@@ -430,10 +423,12 @@ namespace RaytracerCore
 
 							prims.Clear();
 						}
-						catch (Exception e) when (e is Exception || e is FormatException || e is OverflowException)
+#if !DEBUG
+						catch (Exception e) when (e is Exception || e is FormatException || e is OverflowException || e is IndexOutOfRangeException)
 						{
 							throw new LoaderException(cmd, lineNum, e);
 						}
+#endif
 					}
 
 					lineNum++;

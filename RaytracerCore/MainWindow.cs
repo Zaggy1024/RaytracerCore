@@ -121,14 +121,18 @@ namespace RaytracerCore
 		{
 			Scene scene = null;
 
+#if !DEBUG
 			try
+#endif
 			{
 				scene = SceneLoader.FromFile(path);
 			}
+#if !DEBUG
 			catch (LoaderException e)
 			{
 				MessageBox.Show(this, $"{e.Message}{(e.InnerException != null ? $": {e.InnerException.Message}" : "")}", "Error while loading scene");
 			}
+#endif
 
 			if (scene != null)
 			{
