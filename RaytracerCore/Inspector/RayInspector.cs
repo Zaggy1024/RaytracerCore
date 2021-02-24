@@ -156,6 +156,9 @@ namespace RaytracerCore.Inspector
 				treeRayProperties.Nodes.Clear();
 				treeRayProperties.Nodes.Add(hitNode);
 				treeRayProperties.Nodes.Add(ValueNode(ray.Type, "Result"));
+
+				if (!double.IsNaN(ray.FresnelRatio))
+					treeRayProperties.Nodes.Add(ValueNode(ray.FresnelRatio, "Fresnel Ratio"));
 			}
 			else
 			{

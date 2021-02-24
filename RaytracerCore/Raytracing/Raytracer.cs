@@ -15,9 +15,7 @@ namespace RaytracerCore.Raytracing
 			Diffuse,
 			Specular,
 			SpecularFail,
-			RefractionTransmitted,
-			RefractionReflected,
-			RefractionFail,
+			Transmitted,
 			Emission,
 			PureBlack,
 			RecursionComplete,
@@ -29,6 +27,7 @@ namespace RaytracerCore.Raytracing
 		{
 			public Hit Hit = default;
 			public BounceType Type = BounceType.Skipped;
+			public double FresnelRatio = double.NaN;
 		}
 
 		public FullRaytracer FullRaytracer;
@@ -108,16 +107,66 @@ namespace RaytracerCore.Raytracing
 
 				Ray outRay = Ray.Zero;
 
-				double specLum = hit.Primitive.Shininess == 0 ? 0 : hit.Primitive.Specular.Luminance;
+				Vec4D roughNormal = RandomShine(hit.Normal, hit.Primitive.Shininess);
+
 				double diffLum = hit.Primitive.Diffuse.Luminance;
+				double specLum = hit.Primitive.Specular.Luminance;
 				double refrLum = hit.Primitive.Refraction.Luminance;
 				double emisLum = hit.Primitive.Emission.Luminance;
 
-				// If we're coming from inside, only do refraction
-				if (hit.Inside)
+				// We don't need to handle 
+				if (hit.Primitive.Shininess == 0)
 				{
 					specLum = 0;
-					diffLum = 0;
+					refrLum = 0;
+				}
+
+				double iorRatio = 0;
+				double fresnelRatio;
+
+				// Calculate ratio of reflection to transmission on this hit
+				if (hit.Primitive.RefractiveIndex != 0)
+				{
+					double cosIn = -roughNormal.Dot(ray.Direction);
+
+					double iorIn;
+					double iorOut;
+
+					if (hit.Inside)
+					{
+						iorIn = hit.Primitive.RefractiveIndex;
+						iorOut = Scene.AirRefractiveIndex;
+					}
+					else
+					{
+						iorIn = Scene.AirRefractiveIndex;
+						iorOut = hit.Primitive.RefractiveIndex;
+					}
+
+					iorRatio = iorIn / iorOut;
+					double sinOut = iorRatio * Math.Sqrt(1 - (cosIn * cosIn));
+
+					// Skip refraction when we get total internal reflection
+					if (sinOut >= 1)
+					{
+						refrLum = 0;
+
+						if (debugRay != null) debugRay.FresnelRatio = 1;
+					}
+					else
+					{
+						cosIn = Math.Abs(cosIn);
+						double cosOut = Math.Sqrt(1 - (sinOut * sinOut));
+						double ratioSWave = ((iorOut * cosIn) - (iorIn * cosOut)) / ((iorOut * cosIn) + (iorIn * cosOut));
+						double ratioPWave = ((iorIn * cosIn) - (iorOut * cosOut)) / ((iorIn * cosIn) + (iorOut * cosOut));
+						double ratio = ((ratioSWave * ratioSWave) + (ratioPWave * ratioPWave)) / 2;
+						specLum *= ratio;
+						refrLum *= 1 - ratio;
+
+						if (debugRay != null) debugRay.FresnelRatio = ratio;
+
+						fresnelRatio = ratio;
+					}
 				}
 
 				double totalLum = diffLum + specLum + refrLum + emisLum;
@@ -135,7 +184,6 @@ namespace RaytracerCore.Raytracing
 				}
 
 				DoubleColor newTint = DoubleColor.Black;
-				Vec4D roughNormal;
 				Vec4D outDir;
 				double rayRand = Rand.NextDouble() * totalLum;
 				double radicand;
@@ -143,37 +191,18 @@ namespace RaytracerCore.Raytracing
 				// Choose whether to do a specular bounce based on brightness of specular
 				if ((rayRand -= refrLum) <= 0)
 				{
-					if (debugRay != null) debugRay.Type = BounceType.RefractionFail;
-
 					// Transmission implementation
-					roughNormal = RandomShine(hit.Normal, hit.Primitive.Shininess);
 					double ratio = hit.Inside ? (hit.Primitive.RefractiveIndex / Scene.AirRefractiveIndex) : (Scene.AirRefractiveIndex / hit.Primitive.RefractiveIndex);
 					double cos = -roughNormal.Dot(ray.Direction);
 					radicand = 1 - (ratio * ratio * (1 - (cos * cos)));
 
-					if (radicand < 0)
-					{
-						outDir = Reflection(roughNormal, ray.Direction);
+					Util.Assert(radicand > 0, "Fresnel equations did not prevent total internal reflection in refraction code");
 
-						if (outDir.Dot(hit.Normal) >= 0)
-						{
-							if (debugRay != null) debugRay.Type = BounceType.RefractionReflected;
+					if (debugRay != null) debugRay.Type = BounceType.Transmitted;
 
-							outRay = Ray.Directional(hit.Position, outDir);
-							newTint = hit.Primitive.Specular;
-						}
-						//return new DoubleColor(1, 0, 0);
-					}
-					else
-					{
-						if (debugRay != null) debugRay.Type = BounceType.RefractionTransmitted;
-
-						outDir = (ratio * ray.Direction) + (((ratio * cos) - Math.Sqrt(radicand)) * roughNormal);
-						outRay = Ray.Directional(hit.Position, outDir);
-						newTint = hit.Primitive.Refraction;
-					}
-
-					//outRay = Ray.directional(hit.Position, outDir);
+					outDir = (ratio * ray.Direction) + (((ratio * cos) - Math.Sqrt(radicand)) * roughNormal);
+					outRay = Ray.Directional(hit.Position, outDir);
+					newTint = hit.Primitive.Refraction;
 
 					// Only tint on entering the object, and don't count the recursivity
 					if (hit.Inside)
