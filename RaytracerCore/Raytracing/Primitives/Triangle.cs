@@ -194,7 +194,7 @@ namespace RaytracerCore.Raytracing.Primitives
 #if DEBUG
 			Util.Assert(dist > -Util.NearEnough, "triangle hit behind");
 			Util.AssertNearlyEqual((offset - ray.Origin).Length, dist, 1e-8, "triangle hit distance inaccurate");
-			Util.AssertNearlyEqual((offset - ray.GetPoint(dist)).SquareDistance, 0, 1e-8, "triangle hit pos too far");
+			Util.AssertNearlyEqual((offset - ray.GetPoint(dist)).SquaredLength, 0, 1e-8, "triangle hit pos too far");
 #endif
 
 			return new Hit[] { new Hit(primitive: this,
