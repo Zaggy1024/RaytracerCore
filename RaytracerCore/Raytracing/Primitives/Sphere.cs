@@ -207,6 +207,21 @@ namespace RaytracerCore.Raytracing.Primitives
 			// Return one hit if we're inside the sphere
 			return new Hit[] { GetHit(ray, objectRay, (b + radix) / 2, true) };
 		}
-	
+
+		public override Vec4D GetCenter()
+		{
+			if (Transformed)
+				return MatrixToObject * Center;
+
+			return Center;
+		}
+
+		public override double GetMaxCenterDistance(Vec4D direction)
+		{
+			if (Transformed)
+				throw new NotImplementedException();
+
+			return Radius;
+		}
 	}
 }

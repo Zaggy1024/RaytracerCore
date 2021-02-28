@@ -1,12 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 using RaytracerCore.Vectors;
 
 namespace RaytracerCore.Raytracing.Primitives
 {
+	/// <summary>
+	/// Infinite plane primitive. VERY UNTESTED!
+	/// </summary>
 	public class Plane : Primitive
 	{
 		protected Ray Line;
@@ -62,6 +62,19 @@ namespace RaytracerCore.Raytracing.Primitives
 			}
 			
 			return default;
+		}
+
+		public override Vec4D GetCenter()
+		{
+			return Line.Origin;
+		}
+
+		public override double GetMaxCenterDistance(Vec4D direction)
+		{
+			if (Math.Abs(Normal.Dot(direction)) == 1)
+				return 0;
+
+			return double.PositiveInfinity;
 		}
 	}
 }

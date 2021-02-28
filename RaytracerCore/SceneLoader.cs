@@ -418,7 +418,7 @@ namespace RaytracerCore
 
 								prim.Transform(stack.Peek(), invStack.Peek());
 
-								outScene.Primitives.Add(prim);
+								outScene.AddPrimitive(prim);
 							}
 
 							prims.Clear();

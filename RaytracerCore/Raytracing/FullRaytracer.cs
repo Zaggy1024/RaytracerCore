@@ -35,9 +35,11 @@ namespace RaytracerCore.Raytracing
 		private readonly Action<FullRaytracer, string, double, Bitmap> UpdateStatusCallback;
 		private readonly Action<FullRaytracer, PixelPos, Color> UpdatePixelCallback;
 
-		public volatile bool Stop = false;
-		public volatile bool Running = false;
+		internal volatile bool Stopping = false;
+		internal volatile bool Running = false;
 		private readonly List<Raytracer> RunningTracers = new List<Raytracer>();
+		private bool Paused = false;
+		private EventWaitHandle WaitHandle;
 
 		public readonly Raytracer DebugRaytracer;
 
@@ -48,6 +50,8 @@ namespace RaytracerCore.Raytracing
 			UpdatePixelCallback = updatePixel;
 
 			DebugRaytracer = new Raytracer(this, scene, new PixelPos[0]);
+
+			WaitHandle = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
 		}
 
 		/// <summary>
@@ -113,6 +117,9 @@ namespace RaytracerCore.Raytracing
 			if (SampleSets == null)
 				return default;
 
+			x = Util.Clamp(x, 0, Scene.Width);
+			y = Util.Clamp(y, 0, Scene.Height);
+
 			return SampleSets[x, y];
 		}
 
@@ -154,6 +161,9 @@ namespace RaytracerCore.Raytracing
 			/*Stopwatch profile = new Stopwatch();
 			profile.Start();*/
 
+			if (SampleSets == null)
+				return null;
+
 			Bitmap bitmap = new Bitmap(SampleSets.GetLength(0), SampleSets.GetLength(1));
 			BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 
@@ -181,8 +191,11 @@ namespace RaytracerCore.Raytracing
 		{
 			while (Running) ;
 			RunningTracers.Clear();
-			Stop = false;
+			Stopping = false;
 			Running = true;
+
+			UpdateStatus("Preparing scene...", 0);
+			Scene.Prepare();
 
 			int w = Scene.Width;
 			int h = Scene.Height;
@@ -192,6 +205,8 @@ namespace RaytracerCore.Raytracing
 
 			Random rand = new Random();
 
+			UpdateStatus("Beginning render...", 0);
+
 			Stopwatch stopwatch = new Stopwatch();
 			stopwatch.Start();
 
@@ -200,12 +215,12 @@ namespace RaytracerCore.Raytracing
 				double hPartSize = w / (double)PartsH;
 				double vPartSize = h / (double)PartsV;
 
-				for (int hPart = 0; (hPart < PartsH) && !Stop; hPart++)
+				for (int hPart = 0; (hPart < PartsH) && !Stopping; hPart++)
 				{
 					int left = (int)(hPart * hPartSize);
 					int right = (int)((hPart + 1) * hPartSize);
 
-					for (int vPart = 0; (vPart < PartsV) && !Stop; vPart++)
+					for (int vPart = 0; (vPart < PartsV) && !Stopping; vPart++)
 					{
 						int top = (int)(vPart * vPartSize);
 						int bottom = (int)((vPart + 1) * vPartSize);
@@ -251,18 +266,15 @@ namespace RaytracerCore.Raytracing
 
 			while (RunningTracers.Count > 0)
 			{
-				if (Stop)
+				sleepTimer.Restart();
+
+				if (Stopping)
 				{
 					foreach (Raytracer tracer in RunningTracers)
 					{
 						tracer.Stop = true;
 						while (tracer.Running) ;
 					}
-				}
-				else
-				{
-					foreach (Raytracer tracer in RunningTracers)
-						tracer.Running = Running;
 				}
 
 				// Clean up stopped tracers
@@ -286,35 +298,44 @@ namespace RaytracerCore.Raytracing
 
 				//prevMs = estMs;
 
-				sleepTimer.Start();
-				Application.DoEvents();
+				// Pause the stopwatch and check for pause, then resume once unblocked
+				stopwatch.Stop();
+				WaitForResume();
+				stopwatch.Start();
+
 				Thread.Sleep(Math.Max(0, 100 - (int)sleepTimer.ElapsedMilliseconds));
 			}
 
-			if (!Stop)
-			{
-				UpdateStatus("time: " + FormatS(stopwatch.Elapsed.TotalSeconds), 1);
-
-				new Thread(() =>
-						{
-							/*if (scene.outputPath != null)
-							{
-								try
-								{
-									File file = new File(scene.outputPath);
-									ImageIO.write(image, "png", file);
-									System.out.println("Saved image to \"" + scene.outputPath + "\".");
-								}
-								catch (IOException e)
-								{
-									System.out.println("Error saving image to \"" + scene.outputPath + "\".");
-									e.printStackTrace();
-								}
-							}*/
-						}).Start();
-			}
-
 			Running = false;
+		}
+
+		public void WaitForResume()
+		{
+			WaitHandle.WaitOne();
+		}
+
+		public void Pause()
+		{
+			WaitHandle.Reset();
+			Paused = true;
+		}
+
+		public bool IsPaused()
+		{
+			return Paused;
+		}
+
+		public void Resume()
+		{
+			WaitHandle.Set();
+			Paused = false;
+		}
+
+		public void Stop()
+		{
+			Stopping = true;
+			// Resume so threads can finish processing and exit.
+			Resume();
 		}
 	}
 }

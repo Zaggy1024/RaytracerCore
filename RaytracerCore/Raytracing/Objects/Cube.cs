@@ -89,6 +89,10 @@ namespace RaytracerCore.Raytracing.Objects
 
 		public Primitive[] GetChildren(Side sides)
 		{
+			// TODO: Must support transforms and be faster than primitives
+			//if (sides == AllSides)
+			//	return new Primitive[] { new CubePrimitive(Position, Size) };
+
 			Primitive[] prims = new Primitive[6];
 			int i = 0;
 

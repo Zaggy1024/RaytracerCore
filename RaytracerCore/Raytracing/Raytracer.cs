@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Threading;
 using System.Runtime.CompilerServices;
 
 using RaytracerCore.Vectors;
@@ -63,6 +64,7 @@ namespace RaytracerCore.Raytracing
 			return incoming - (normal * (incoming.Dot(normal) * 2));
 		}
 
+		// Inline to optimize out the debug code when not using the inspector.
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private DoubleColor GetColor(Ray ray, ref DebugRay[] debug)
 		{
@@ -122,7 +124,6 @@ namespace RaytracerCore.Raytracing
 				}
 
 				double iorRatio = 0;
-				double fresnelRatio;
 
 				// Calculate ratio of reflection to transmission on this hit
 				if (hit.Primitive.RefractiveIndex != 0)
@@ -164,8 +165,6 @@ namespace RaytracerCore.Raytracing
 						refrLum *= 1 - ratio;
 
 						if (debugRay != null) debugRay.FresnelRatio = ratio;
-
-						fresnelRatio = ratio;
 					}
 				}
 
@@ -192,7 +191,7 @@ namespace RaytracerCore.Raytracing
 				if ((rayRand -= refrLum) <= 0)
 				{
 					// Transmission implementation
-					double ratio = hit.Inside ? (hit.Primitive.RefractiveIndex / Scene.AirRefractiveIndex) : (Scene.AirRefractiveIndex / hit.Primitive.RefractiveIndex);
+					double ratio = iorRatio;
 					double cos = -roughNormal.Dot(ray.Direction);
 					radicand = 1 - (ratio * ratio * (1 - (cos * cos)));
 
@@ -331,7 +330,8 @@ namespace RaytracerCore.Raytracing
 
 						Samples++;
 
-						while (!Running && !Stop) ;
+						if (!Stop)
+							FullRaytracer.WaitForResume();
 					}
 				}
 			}

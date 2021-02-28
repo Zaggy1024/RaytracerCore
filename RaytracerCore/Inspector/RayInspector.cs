@@ -89,7 +89,7 @@ namespace RaytracerCore.Inspector
 				return Node($"{name}: None", name);
 
 			TreeNode node = Node($"{name} ({obj.GetType().Name})", name);
-			node.Nodes.Add(ValueNode(Raytracer.Scene.Primitives.IndexOf(obj), "Index"));
+			node.Nodes.Add(ValueNode(Raytracer.Scene.GetID(obj), "Index"));
 
 			node.Nodes.Add(ColorNode(obj.Diffuse, "Diffuse"));
 

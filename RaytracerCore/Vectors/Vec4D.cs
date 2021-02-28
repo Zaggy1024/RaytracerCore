@@ -57,6 +57,24 @@ namespace RaytracerCore.Vectors
 			return MatrixTransforms.Rotate(theta, pole) * ((pole * z) + (cross * Math.Sqrt(1 - z * z)));
 		}
 
+		/// <summary>
+		/// Create a new vector with one dimension set to the specified value.
+		/// </summary>
+		/// <param name="index">The index of the component to set, where 0 = x, 1 = y, etc.</param>
+		/// <param name="value">The value to set the specified component to.</param>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vec4D CreateIndexed(int index, double value)
+		{
+			return index switch
+			{
+				0 => new Vec4D(value, 0, 0, 0),
+				1 => new Vec4D(0, value, 0, 0),
+				2 => new Vec4D(0, 0, value, 0),
+				3 => new Vec4D(0, 0, 0, value),
+				_ => throw new IndexOutOfRangeException($"Index {index} is out of range for a 4-dimensional vector."),
+			};
+		}
+
 		public static Vec4D Zero => new Vec4D(0, 0, 0, 0);
 
 		public readonly double X;
@@ -225,6 +243,22 @@ namespace RaytracerCore.Vectors
 			return new Vec4D(left.X / right, left.Y / right, left.Z / right, left.W / right);
 		}
 
+		public double this[int index]
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+			get
+			{
+				return index switch
+				{
+					0 => X,
+					1 => Y,
+					2 => Z,
+					3 => W,
+					_ => throw new IndexOutOfRangeException($"Index {index} is out of range for a 4-dimensional vector.")
+				};
+			}
+		}
+
 		/// <summary>
 		/// Returns the squared length of the vector, including W. This should not be used on non-directional vectors.
 		/// </summary>
@@ -320,6 +354,26 @@ namespace RaytracerCore.Vectors
 					Z * right.X - X * right.Z,
 					X * right.Y - Y * right.X,
 					0);
+		}
+
+		/// <summary>
+		/// Create a vector with the lowest of each component of the two input vectors.
+		/// </summary>
+		/// <param name="a">The first vector.</param>
+		/// <param name="b">The second vector.</param>
+		public static Vec4D Min(Vec4D a, Vec4D b)
+		{
+			return new Vec4D(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Min(a.Z, b.Z), Math.Min(a.W, b.W));
+		}
+
+		/// <summary>
+		/// Create a vector with the highest of each component of the two input vectors.
+		/// </summary>
+		/// <param name="a">The first vector.</param>
+		/// <param name="b">The second vector.</param>
+		public static Vec4D Max(Vec4D a, Vec4D b)
+		{
+			return new Vec4D(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y), Math.Max(a.Z, b.Z), Math.Max(a.W, b.W));
 		}
 
 		/// <summary>

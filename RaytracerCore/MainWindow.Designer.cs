@@ -53,6 +53,7 @@ namespace RaytracerCore
 			this.checkDebug = new System.Windows.Forms.CheckBox();
 			this.panelPreview = new System.Windows.Forms.Panel();
 			this.renderedImageBox = new System.Windows.Forms.PictureBox();
+			this.buttonPause = new System.Windows.Forms.Button();
 			this.menuStrip.SuspendLayout();
 			this.statusStrip.SuspendLayout();
 			this.mainPanel.SuspendLayout();
@@ -154,12 +155,13 @@ namespace RaytracerCore
 			// 
 			// sceneStatusPanel
 			// 
-			this.sceneStatusPanel.ColumnCount = 11;
+			this.sceneStatusPanel.ColumnCount = 12;
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 175F));
+			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 153F));
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 88F));
@@ -167,16 +169,17 @@ namespace RaytracerCore
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
 			this.sceneStatusPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.sceneStatusPanel.Controls.Add(this.labelSceneTitle, 0, 0);
-			this.sceneStatusPanel.Controls.Add(this.labelCameraTitle, 3, 0);
+			this.sceneStatusPanel.Controls.Add(this.labelCameraTitle, 4, 0);
 			this.sceneStatusPanel.Controls.Add(this.labelScene, 1, 0);
-			this.sceneStatusPanel.Controls.Add(this.comboCamera, 4, 0);
-			this.sceneStatusPanel.Controls.Add(this.sliderExposure, 6, 0);
-			this.sceneStatusPanel.Controls.Add(this.labelExposureTitle, 5, 0);
-			this.sceneStatusPanel.Controls.Add(this.numericExposure, 7, 0);
-			this.sceneStatusPanel.Controls.Add(this.textBackground, 9, 0);
-			this.sceneStatusPanel.Controls.Add(this.labelBackgroundTitle, 8, 0);
+			this.sceneStatusPanel.Controls.Add(this.comboCamera, 5, 0);
+			this.sceneStatusPanel.Controls.Add(this.sliderExposure, 7, 0);
+			this.sceneStatusPanel.Controls.Add(this.labelExposureTitle, 6, 0);
+			this.sceneStatusPanel.Controls.Add(this.numericExposure, 8, 0);
+			this.sceneStatusPanel.Controls.Add(this.textBackground, 10, 0);
+			this.sceneStatusPanel.Controls.Add(this.labelBackgroundTitle, 9, 0);
 			this.sceneStatusPanel.Controls.Add(this.buttonReload, 2, 0);
-			this.sceneStatusPanel.Controls.Add(this.checkDebug, 10, 0);
+			this.sceneStatusPanel.Controls.Add(this.checkDebug, 11, 0);
+			this.sceneStatusPanel.Controls.Add(this.buttonPause, 3, 0);
 			this.sceneStatusPanel.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.sceneStatusPanel.Location = new System.Drawing.Point(0, 0);
 			this.sceneStatusPanel.Margin = new System.Windows.Forms.Padding(0);
@@ -203,7 +206,7 @@ namespace RaytracerCore
 			// 
 			this.labelCameraTitle.AutoSize = true;
 			this.labelCameraTitle.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.labelCameraTitle.Location = new System.Drawing.Point(101, 0);
+			this.labelCameraTitle.Location = new System.Drawing.Point(137, 0);
 			this.labelCameraTitle.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
 			this.labelCameraTitle.Name = "labelCameraTitle";
 			this.labelCameraTitle.Padding = new System.Windows.Forms.Padding(0, 3, 4, 3);
@@ -228,10 +231,10 @@ namespace RaytracerCore
 			this.comboCamera.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.comboCamera.Items.AddRange(new object[] {
             "Camera 0"});
-			this.comboCamera.Location = new System.Drawing.Point(164, 3);
+			this.comboCamera.Location = new System.Drawing.Point(200, 3);
 			this.comboCamera.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
 			this.comboCamera.Name = "comboCamera";
-			this.comboCamera.Size = new System.Drawing.Size(167, 23);
+			this.comboCamera.Size = new System.Drawing.Size(145, 23);
 			this.comboCamera.TabIndex = 3;
 			this.comboCamera.Text = "Camera 0";
 			this.comboCamera.SelectedIndexChanged += new System.EventHandler(this.comboCamera_SelectedIndexChanged);
@@ -239,7 +242,7 @@ namespace RaytracerCore
 			// sliderExposure
 			// 
 			this.sliderExposure.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.sliderExposure.Location = new System.Drawing.Point(405, 3);
+			this.sliderExposure.Location = new System.Drawing.Point(419, 3);
 			this.sliderExposure.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
 			this.sliderExposure.Maximum = 200;
 			this.sliderExposure.Name = "sliderExposure";
@@ -252,7 +255,7 @@ namespace RaytracerCore
 			// 
 			this.labelExposureTitle.AutoSize = true;
 			this.labelExposureTitle.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.labelExposureTitle.Location = new System.Drawing.Point(339, 0);
+			this.labelExposureTitle.Location = new System.Drawing.Point(353, 0);
 			this.labelExposureTitle.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
 			this.labelExposureTitle.Name = "labelExposureTitle";
 			this.labelExposureTitle.Size = new System.Drawing.Size(58, 28);
@@ -269,7 +272,7 @@ namespace RaytracerCore
             0,
             0,
             65536});
-			this.numericExposure.Location = new System.Drawing.Point(534, 3);
+			this.numericExposure.Location = new System.Drawing.Point(548, 3);
 			this.numericExposure.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
 			this.numericExposure.Maximum = new decimal(new int[] {
             20,
@@ -283,7 +286,7 @@ namespace RaytracerCore
 			// 
 			// textBackground
 			// 
-			this.textBackground.Location = new System.Drawing.Point(704, 3);
+			this.textBackground.Location = new System.Drawing.Point(718, 3);
 			this.textBackground.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
 			this.textBackground.Name = "textBackground";
 			this.textBackground.Size = new System.Drawing.Size(69, 23);
@@ -295,7 +298,7 @@ namespace RaytracerCore
 			// 
 			this.labelBackgroundTitle.AutoSize = true;
 			this.labelBackgroundTitle.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.labelBackgroundTitle.Location = new System.Drawing.Point(622, 0);
+			this.labelBackgroundTitle.Location = new System.Drawing.Point(636, 0);
 			this.labelBackgroundTitle.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
 			this.labelBackgroundTitle.Name = "labelBackgroundTitle";
 			this.labelBackgroundTitle.Size = new System.Drawing.Size(74, 28);
@@ -319,7 +322,7 @@ namespace RaytracerCore
 			// 
 			this.checkDebug.AutoSize = true;
 			this.checkDebug.Dock = System.Windows.Forms.DockStyle.Left;
-			this.checkDebug.Location = new System.Drawing.Point(781, 3);
+			this.checkDebug.Location = new System.Drawing.Point(795, 3);
 			this.checkDebug.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
 			this.checkDebug.Name = "checkDebug";
 			this.checkDebug.Size = new System.Drawing.Size(61, 22);
@@ -350,6 +353,18 @@ namespace RaytracerCore
 			this.renderedImageBox.TabStop = false;
 			this.renderedImageBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.renderedImageBox_Click);
 			this.renderedImageBox.MouseMove += new System.Windows.Forms.MouseEventHandler(this.renderedImageBox_MouseMove);
+			// 
+			// buttonPause
+			// 
+			this.buttonPause.Dock = System.Windows.Forms.DockStyle.Fill;
+			this.buttonPause.Location = new System.Drawing.Point(101, 0);
+			this.buttonPause.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+			this.buttonPause.Name = "buttonPause";
+			this.buttonPause.Size = new System.Drawing.Size(28, 28);
+			this.buttonPause.TabIndex = 11;
+			this.buttonPause.Text = "P";
+			this.buttonPause.UseVisualStyleBackColor = true;
+			this.buttonPause.Click += new System.EventHandler(this.buttonPause_Click);
 			// 
 			// MainWindow
 			// 
@@ -382,29 +397,30 @@ namespace RaytracerCore
 		#endregion
 
 		public System.Windows.Forms.MenuStrip menuStrip;
-		public System.Windows.Forms.StatusStrip statusStrip;
+		public System.Windows.Forms.ToolStripMenuItem fileMenu;
+		public System.Windows.Forms.ToolStripMenuItem openSceneMenuItem;
+		public System.Windows.Forms.ToolStripMenuItem saveOutputToolStripMenuItem;
 		public System.Windows.Forms.ToolStripStatusLabel labelStatus;
 		public System.Windows.Forms.TableLayoutPanel mainPanel;
 		public System.Windows.Forms.TableLayoutPanel sceneStatusPanel;
 		public System.Windows.Forms.Label labelSceneTitle;
+		public System.Windows.Forms.Label labelScene;
+		public System.Windows.Forms.Button buttonReload;
 		public System.Windows.Forms.Label labelCameraTitle;
-		public System.Windows.Forms.ToolStripMenuItem fileMenu;
-		public System.Windows.Forms.ToolStripMenuItem openSceneMenuItem;
+		public System.Windows.Forms.ComboBox comboCamera;
+		public System.Windows.Forms.Label labelExposureTitle;
+		public System.Windows.Forms.TrackBar sliderExposure;
+		public System.Windows.Forms.NumericUpDown numericExposure;
+		public System.Windows.Forms.Label labelBackgroundTitle;
+		public System.Windows.Forms.TextBox textBackground;
+		public System.Windows.Forms.CheckBox checkDebug;
+		public System.Windows.Forms.Panel panelPreview;
 		public System.Windows.Forms.PictureBox renderedImageBox;
-		private System.Windows.Forms.Panel panelPreview;
-		private System.Windows.Forms.ToolStripProgressBar barProgress;
-		private System.Windows.Forms.ToolStripStatusLabel labelProgress;
-		private System.Windows.Forms.Label labelScene;
-		private System.Windows.Forms.ComboBox comboCamera;
-		private System.Windows.Forms.TrackBar sliderExposure;
-		private System.Windows.Forms.Label labelExposureTitle;
-		private System.Windows.Forms.NumericUpDown numericExposure;
-		private System.Windows.Forms.TextBox textBackground;
-		private System.Windows.Forms.Label labelBackgroundTitle;
-		private System.Windows.Forms.ToolStripMenuItem saveOutputToolStripMenuItem;
-		private System.Windows.Forms.Button buttonReload;
-		private System.Windows.Forms.CheckBox checkDebug;
-		private System.Windows.Forms.ToolStripStatusLabel labelSample;
+		public System.Windows.Forms.StatusStrip statusStrip;
+		public System.Windows.Forms.ToolStripProgressBar barProgress;
+		public System.Windows.Forms.ToolStripStatusLabel labelProgress;
+		public System.Windows.Forms.ToolStripStatusLabel labelSample;
+		private System.Windows.Forms.Button buttonPause;
 	}
 }
 

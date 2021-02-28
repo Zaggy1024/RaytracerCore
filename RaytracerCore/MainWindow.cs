@@ -40,10 +40,14 @@ namespace RaytracerCore
 
 			numericExposure.Value = 1.0M;
 			UpdateBackgroundColor();
+			UpdatePauseButton();
 		}
 
 		private void UpdateImage(Bitmap bitmap)
 		{
+			if (bitmap == null)
+				return;
+
 			renderedImageBox.Image = bitmap;
 			renderedImageBox.Width = bitmap.Width;
 			renderedImageBox.Height = bitmap.Height;
@@ -57,13 +61,13 @@ namespace RaytracerCore
 				{
 					// If we're already stopping, another thread is either restarting or changing scenes.
 					// Don't start a new render thread on the same raytracer.
-					if (CurrentRaytracer.Stop)
+					if (CurrentRaytracer.Stopping)
 					{
 						change?.Invoke();
 						return;
 					}
 
-					CurrentRaytracer.Stop = true;
+					CurrentRaytracer.Stopping = true;
 
 					while (CurrentRaytracer.Running) ;
 				}
@@ -72,14 +76,17 @@ namespace RaytracerCore
 
 				if (CurrentRaytracer != null)
 				{
-					CurrentRaytracer.Start();
-
 					Context.Post((s) =>
 					{
 						Bitmap image = new Bitmap(CurrentRaytracer.Scene.Width, CurrentRaytracer.Scene.Height, PixelFormat.Format32bppArgb);
 						Graphics.FromImage(image).Clear(CurrentRaytracer.Scene.BackgroundRGB.ToColor(CurrentRaytracer.Scene.BackgroundAlpha));
 						UpdateImage(image);
+
+						UpdatePauseButton();
 					}, null);
+
+					CurrentRaytracer.Start();
+
 				}
 			}).Start();
 		}
@@ -156,7 +163,16 @@ namespace RaytracerCore
 		private void UpdateCurrentImage()
 		{
 			if (CurrentRaytracer != null)
+			{
+				// If we're in the GUI thread, update asynchronously using thread pool.
+				if (SynchronizationContext.Current == Context)
+				{
+					ThreadPool.QueueUserWorkItem((o) => UpdateCurrentImage());
+					return;
+				}
+
 				UpdateImage(CurrentRaytracer.GetBitmap());
+			}
 		}
 
 		private void openSceneMenuItem_Click(object sender, EventArgs e)
@@ -211,7 +227,7 @@ namespace RaytracerCore
 		private void MainWindow_FormClosing(object sender, FormClosingEventArgs e)
 		{
 			if (CurrentRaytracer != null)
-				CurrentRaytracer.Stop = true;
+				CurrentRaytracer.Stopping = true;
 		}
 
 		private void comboCamera_SelectedIndexChanged(object sender, EventArgs e)
@@ -238,7 +254,9 @@ namespace RaytracerCore
 		{
 			sliderExposure.Value = Math.Min((int)(numericExposure.Value * 100M), sliderExposure.Maximum);
 			SetExposure();
-			//UpdateCurrentImage();
+
+			//if (CurrentRaytracer?.IsPaused() == true)
+				UpdateCurrentImage();
 		}
 
 		private void UpdateBackgroundColor()
@@ -258,6 +276,41 @@ namespace RaytracerCore
 		{
 			if (CurrentPath != null)
 				LoadScene(CurrentPath);
+		}
+
+		private void UpdatePauseButton()
+		{
+			if (CurrentRaytracer == null)
+			{
+				buttonPause.Enabled = false;
+				buttonPause.Text = "▶";
+			}
+			else
+			{
+				buttonPause.Enabled = true;
+
+				if (CurrentRaytracer.IsPaused())
+					buttonPause.Text = "▶";
+				else
+					buttonPause.Text = "❚❚";
+			}
+		}
+
+		private void buttonPause_Click(object sender, EventArgs e)
+		{
+			if (CurrentRaytracer != null)
+			{
+				if (CurrentRaytracer.IsPaused())
+				{
+					CurrentRaytracer.Resume();
+				}
+				else
+				{
+					CurrentRaytracer.Pause();
+				}
+			}
+
+			UpdatePauseButton();
 		}
 
 		public void CloseInspectors()
@@ -283,7 +336,9 @@ namespace RaytracerCore
 		{
 			if (CurrentRaytracer != null)
 			{
-				CurrentRaytracer.Running = !checkDebug.Checked;
+				//CurrentRaytracer.Running = !checkDebug.Checked;
+				CurrentRaytracer.Scene.DebugGeom = checkDebug.Checked;
+				RestartRender();
 			}
 		}
 

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Collections.Generic;
+using System.Linq;
 
 using RaytracerCore.Raytracing;
 using RaytracerCore.Vectors;
@@ -9,7 +11,7 @@ namespace RaytracerCore
 	/// <summary>
 	/// Misc. utility functions used elsewhere in the code.
 	/// </summary>
-	class Util
+	public class Util
 	{
 		public static readonly double NearEnough = 1e-24;
 
@@ -109,6 +111,22 @@ namespace RaytracerCore
 			return value;
 		}
 
+		/// <summary>
+		/// Limits a value within the specified range.
+		/// </summary>
+		/// <param name="value">The value to clamp.</param>
+		/// <param name="minimum">The minimum value to return.</param>
+		/// <param name="maximum">The maximum value to return.</param>
+		/// <returns>The clamped value.</returns>
+		public static int Clamp(int value, int minimum, int maximum)
+		{
+			if (value < minimum)
+				return minimum;
+			if (value > maximum)
+				return maximum;
+			return value;
+		}
+
 		/// <summary>Determine whether two hits should be considered similar enough to be ignored by the ray tracer.</summary>
 		/// <param name="ray">The ray that resulted in the <paramref name="b"/> hit.</param>
 		/// <param name="a">The first hit to compare.</param>
@@ -127,6 +145,29 @@ namespace RaytracerCore
 			if (ray.Direction.Dot(b.Normal) > 0)
 				return a.Inside != b.Inside;
 			return a.Inside == b.Inside;
+		}
+
+		/// <summary>
+		/// Check whether an <see cref="IEnumerable{T}"/> contains a single value, and retrieve it to <paramref name="value"/> if so.
+		/// 
+		/// <para><paramref name="value"/> will be null if the collection contained more than one element.</para>
+		/// </summary>
+		/// <typeparam name="T">The type of value stored in the enumerable.</typeparam>
+		/// <param name="enumerable">The enumerable to retrieve from.</param>
+		/// <param name="value">The variable to store the retrieved value to.</param>
+		/// <returns>Whether the collection contained a single value.</returns>
+		public static bool RetrieveSingle<T>(IEnumerable<T> enumerable, out T value)
+		{
+			try
+			{
+				value = enumerable.Single();
+				return true;
+			}
+			catch (InvalidOperationException)
+			{
+				value = default;
+				return false;
+			}
 		}
 	}
 }

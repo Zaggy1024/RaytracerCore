@@ -1,5 +1,7 @@
 ﻿using RaytracerCore.Raytracing.Objects;
+using RaytracerCore.Raytracing.Acceleration;
 using RaytracerCore.Vectors;
+using System;
 
 namespace RaytracerCore.Raytracing.Primitives
 {
@@ -7,7 +9,7 @@ namespace RaytracerCore.Raytracing.Primitives
 	/// Contains methods necessary to ray trace any primitive representation,
 	/// and the material for the primitive.
 	/// </summary>
-	public abstract class Primitive
+	public abstract class Primitive : IBoundedObject
 	{
 		public IObject Parent = null;
 
@@ -113,5 +115,9 @@ namespace RaytracerCore.Raytracing.Primitives
 		/// <summary>The refractive index of the surface.
 		/// When using this value, any ray entering the primitive should enter an inside=false hit and exit an inside=true hit.</summary>
 		public double RefractiveIndex { get; set; }
+
+		// IBoundedObject methods
+		public abstract Vec4D GetCenter();
+		public abstract double GetMaxCenterDistance(Vec4D direction);
 	}
 }

@@ -221,5 +221,31 @@ namespace RaytracerCore.Raytracing.Primitives
 				return Normal * -1;
 			return Normal;
 		}
+
+		public override Vec4D GetCenter()
+		{
+			return (Vert0.Position + Vert1.Position + Vert2.Position) / 3;
+		}
+
+		public override double GetMaxCenterDistance(Vec4D direction)
+		{
+			Vec4D center = GetCenter();
+			double dist = 0;
+
+			if (direction == Vec4D.Zero)
+			{
+				dist = Math.Max((Vert0.Position - center).Length, dist);
+				dist = Math.Max((Vert1.Position - center).Length, dist);
+				dist = Math.Max((Vert2.Position - center).Length, dist);
+			}
+			else
+			{
+				dist = Math.Max((Vert0.Position - center).Dot(direction), dist);
+				dist = Math.Max((Vert1.Position - center).Dot(direction), dist);
+				dist = Math.Max((Vert2.Position - center).Dot(direction), dist);
+			}
+
+			return dist;
+		}
 	}
 }

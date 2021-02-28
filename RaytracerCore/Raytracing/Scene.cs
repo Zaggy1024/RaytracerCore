@@ -1,12 +1,10 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Collections.Generic;
 using System.Linq;
 
 using RaytracerCore.Vectors;
 using RaytracerCore.Raytracing.Cameras;
 using RaytracerCore.Raytracing.Primitives;
-using RaytracerCore.Raytracing.Objects;
 
 namespace RaytracerCore.Raytracing
 {
@@ -25,11 +23,25 @@ namespace RaytracerCore.Raytracing
 		public int CurrentCamera = 0;
 		public List<Camera> Cameras = new List<Camera>();
 
-		public List<Primitive> Primitives = new List<Primitive>();
+		private List<Primitive> Primitives = new List<Primitive>();
 
 		public int Recursion = 3;
 
 		public double AirRefractiveIndex = 1.000293;
+
+		public void Prepare()
+		{
+		}
+
+		public void AddPrimitive(Primitive primitive)
+		{
+			Primitives.Add(primitive);
+		}
+
+		public int GetID(Primitive primitive)
+		{
+			return Primitives.IndexOf(primitive);
+		}
 
 		public static Hit RayTracePrimitives(Ray ray, Hit skipHit, IEnumerable<Primitive> primitives)
 		{
