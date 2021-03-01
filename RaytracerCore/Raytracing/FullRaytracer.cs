@@ -28,6 +28,8 @@ namespace RaytracerCore.Raytracing
 		private const int PartsH = 4;
 		private const int PartsV = 3;
 
+		private const int Interval = 2000;
+
 		public Scene Scene;
 		public double Exposure;
 
@@ -35,11 +37,14 @@ namespace RaytracerCore.Raytracing
 		private readonly Action<FullRaytracer, string, double, Bitmap> UpdateStatusCallback;
 		private readonly Action<FullRaytracer, PixelPos, Color> UpdatePixelCallback;
 
-		internal volatile bool Stopping = false;
-		internal volatile bool Running = false;
+		private volatile bool Stopping = false;
+		private volatile bool Running = false;
+		private volatile bool Paused = false;
 		private readonly List<Raytracer> RunningTracers = new List<Raytracer>();
-		private bool Paused = false;
-		private EventWaitHandle WaitHandle;
+
+		private EventWaitHandle IntervalWaiter;
+		private EventWaitHandle MainWaiter;
+		private EventWaitHandle ChildWaiter;
 
 		public readonly Raytracer DebugRaytracer;
 
@@ -51,7 +56,10 @@ namespace RaytracerCore.Raytracing
 
 			DebugRaytracer = new Raytracer(this, scene, new PixelPos[0]);
 
-			WaitHandle = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
+			IntervalWaiter = new EventWaitHandle(true, EventResetMode.AutoReset);
+
+			MainWaiter = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
+			ChildWaiter = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
 		}
 
 		/// <summary>
@@ -277,6 +285,11 @@ namespace RaytracerCore.Raytracing
 					}
 				}
 
+				bool finishedPausing = RunningTracers.All((t) => t.Paused);
+
+				if (finishedPausing)
+					stopwatch.Stop();
+
 				// Clean up stopped tracers
 				RunningTracers.RemoveAll((t) => t.Stop && !t.Running);
 
@@ -298,37 +311,56 @@ namespace RaytracerCore.Raytracing
 
 				//prevMs = estMs;
 
-				// Pause the stopwatch and check for pause, then resume once unblocked
-				stopwatch.Stop();
-				WaitForResume();
-				stopwatch.Start();
+				// Wait for all tracers to pause and then pause this thread as well
+				if (Paused && finishedPausing)
+				{
+					// Pause the stopwatch and check for pause, then resume once unblocked
+					MainWaiter.WaitOne();
 
-				Thread.Sleep(Math.Max(0, 100 - (int)sleepTimer.ElapsedMilliseconds));
+					if (!Paused)
+						stopwatch.Start();
+				}
+
+				IntervalWaiter.WaitOne(Math.Max(0, Interval - (int)sleepTimer.ElapsedMilliseconds));
 			}
 
 			Running = false;
 		}
 
+		public bool IsRunning => Running;
+
 		public void WaitForResume()
 		{
-			WaitHandle.WaitOne();
+			ChildWaiter.WaitOne();
 		}
 
 		public void Pause()
 		{
-			WaitHandle.Reset();
 			Paused = true;
+			MainWaiter.Reset();
+			ChildWaiter.Reset();
 		}
 
-		public bool IsPaused()
+		public void QueueUpdate()
 		{
-			return Paused;
+			// Skip the interval wait in the main thread to update ASAP.
+			IntervalWaiter.Set();
+
+			// If we're paused, unblock the main thread and then block it again when an update has finished.
+			if (Paused)
+			{
+				MainWaiter.Set();
+				MainWaiter.Reset();
+			}
 		}
+
+		public bool IsPaused => Paused;
 
 		public void Resume()
 		{
-			WaitHandle.Set();
 			Paused = false;
+			MainWaiter.Set();
+			ChildWaiter.Set();
 		}
 
 		public void Stop()
@@ -337,5 +369,7 @@ namespace RaytracerCore.Raytracing
 			// Resume so threads can finish processing and exit.
 			Resume();
 		}
+
+		public bool IsStopping => Stopping;
 	}
 }

@@ -45,12 +45,15 @@ namespace RaytracerCore
 
 		private void UpdateImage(Bitmap bitmap)
 		{
+			Util.Assert(SynchronizationContext.Current == Context, "Do not update the displayed image off the GUI thread.");
+
 			if (bitmap == null)
 				return;
 
 			renderedImageBox.Image = bitmap;
 			renderedImageBox.Width = bitmap.Width;
 			renderedImageBox.Height = bitmap.Height;
+			renderedImageBox.Refresh();
 		}
 
 		private void RestartRender(Action change)
@@ -61,15 +64,15 @@ namespace RaytracerCore
 				{
 					// If we're already stopping, another thread is either restarting or changing scenes.
 					// Don't start a new render thread on the same raytracer.
-					if (CurrentRaytracer.Stopping)
+					if (CurrentRaytracer.IsStopping)
 					{
 						change?.Invoke();
 						return;
 					}
 
-					CurrentRaytracer.Stopping = true;
+					CurrentRaytracer.Stop();
 
-					while (CurrentRaytracer.Running) ;
+					while (CurrentRaytracer.IsRunning) ;
 				}
 
 				change?.Invoke();
@@ -165,13 +168,14 @@ namespace RaytracerCore
 			if (CurrentRaytracer != null)
 			{
 				// If we're in the GUI thread, update asynchronously using thread pool.
-				if (SynchronizationContext.Current == Context)
+				/*if (SynchronizationContext.Current == Context)
 				{
 					ThreadPool.QueueUserWorkItem((o) => UpdateCurrentImage());
 					return;
 				}
 
-				UpdateImage(CurrentRaytracer.GetBitmap());
+				UpdateImage(CurrentRaytracer.GetBitmap());*/
+				CurrentRaytracer.QueueUpdate();
 			}
 		}
 
@@ -227,7 +231,7 @@ namespace RaytracerCore
 		private void MainWindow_FormClosing(object sender, FormClosingEventArgs e)
 		{
 			if (CurrentRaytracer != null)
-				CurrentRaytracer.Stopping = true;
+				CurrentRaytracer.Stop();
 		}
 
 		private void comboCamera_SelectedIndexChanged(object sender, EventArgs e)
@@ -289,7 +293,7 @@ namespace RaytracerCore
 			{
 				buttonPause.Enabled = true;
 
-				if (CurrentRaytracer.IsPaused())
+				if (CurrentRaytracer.IsPaused)
 					buttonPause.Text = "▶";
 				else
 					buttonPause.Text = "❚❚";
@@ -300,14 +304,10 @@ namespace RaytracerCore
 		{
 			if (CurrentRaytracer != null)
 			{
-				if (CurrentRaytracer.IsPaused())
-				{
+				if (CurrentRaytracer.IsPaused)
 					CurrentRaytracer.Resume();
-				}
 				else
-				{
 					CurrentRaytracer.Pause();
-				}
 			}
 
 			UpdatePauseButton();

@@ -40,6 +40,7 @@ namespace RaytracerCore.Raytracing
 		
 		public volatile bool Stop = false;
 		public volatile bool Running = false;
+		public volatile bool Paused = false;
 
 		private Random Rand;
 		
@@ -78,7 +79,7 @@ namespace RaytracerCore.Raytracing
 
 				DebugRay debugRay = debug != null ? debug[i] = new DebugRay() { Hit = hit } : null;
 
-				if (hit == default(Hit))
+				if (hit == default)
 				{
 					if (debugRay != null) debugRay.Type = BounceType.Missed;
 
@@ -329,9 +330,13 @@ namespace RaytracerCore.Raytracing
 							FullRaytracer.AddSample(pos, color);
 
 						Samples++;
+					}
 
-						if (!Stop)
-							FullRaytracer.WaitForResume();
+					if (!Stop && FullRaytracer.IsPaused)
+					{
+						Paused = true;
+						FullRaytracer.WaitForResume();
+						Paused = false;
 					}
 				}
 			}
