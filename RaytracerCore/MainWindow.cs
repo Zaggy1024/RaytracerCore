@@ -40,7 +40,7 @@ namespace RaytracerCore
 
 			numericExposure.Value = 1.0M;
 			UpdateBackgroundColor();
-			UpdatePauseButton();
+			UpdateSceneButtons();
 		}
 
 		private void UpdateImage(Bitmap bitmap)
@@ -85,7 +85,7 @@ namespace RaytracerCore
 						Graphics.FromImage(image).Clear(CurrentRaytracer.Scene.BackgroundRGB.ToColor(CurrentRaytracer.Scene.BackgroundAlpha));
 						UpdateImage(image);
 
-						UpdatePauseButton();
+						UpdateSceneButtons();
 					}, null);
 
 					CurrentRaytracer.Start();
@@ -259,8 +259,7 @@ namespace RaytracerCore
 			sliderExposure.Value = Math.Min((int)(numericExposure.Value * 100M), sliderExposure.Maximum);
 			SetExposure();
 
-			//if (CurrentRaytracer?.IsPaused() == true)
-				UpdateCurrentImage();
+			UpdateCurrentImage();
 		}
 
 		private void UpdateBackgroundColor()
@@ -276,28 +275,20 @@ namespace RaytracerCore
 			UpdateBackgroundColor();
 		}
 
+		private void UpdateSceneButtons()
+		{
+			buttonReload.Enabled = buttonPause.Enabled = CurrentRaytracer != null;
+
+			if (CurrentRaytracer?.IsPaused == false)
+				buttonPause.Text = "❚❚";
+			else
+				buttonPause.Text = "▶";
+		}
+
 		private void buttonReload_Click(object sender, EventArgs e)
 		{
 			if (CurrentPath != null)
 				LoadScene(CurrentPath);
-		}
-
-		private void UpdatePauseButton()
-		{
-			if (CurrentRaytracer == null)
-			{
-				buttonPause.Enabled = false;
-				buttonPause.Text = "▶";
-			}
-			else
-			{
-				buttonPause.Enabled = true;
-
-				if (CurrentRaytracer.IsPaused)
-					buttonPause.Text = "▶";
-				else
-					buttonPause.Text = "❚❚";
-			}
 		}
 
 		private void buttonPause_Click(object sender, EventArgs e)
@@ -310,7 +301,7 @@ namespace RaytracerCore
 					CurrentRaytracer.Pause();
 			}
 
-			UpdatePauseButton();
+			UpdateSceneButtons();
 		}
 
 		public void CloseInspectors()

@@ -28,7 +28,7 @@ namespace RaytracerCore.Raytracing
 		private const int PartsH = 4;
 		private const int PartsV = 3;
 
-		private const int Interval = 2000;
+		private const int Interval = 100;
 
 		public Scene Scene;
 		public double Exposure;

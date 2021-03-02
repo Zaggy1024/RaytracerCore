@@ -51,9 +51,9 @@ namespace RaytracerCore
 			this.labelBackgroundTitle = new System.Windows.Forms.Label();
 			this.buttonReload = new System.Windows.Forms.Button();
 			this.checkDebug = new System.Windows.Forms.CheckBox();
+			this.buttonPause = new System.Windows.Forms.Button();
 			this.panelPreview = new System.Windows.Forms.Panel();
 			this.renderedImageBox = new System.Windows.Forms.PictureBox();
-			this.buttonPause = new System.Windows.Forms.Button();
 			this.menuStrip.SuspendLayout();
 			this.statusStrip.SuspendLayout();
 			this.mainPanel.SuspendLayout();
@@ -331,6 +331,18 @@ namespace RaytracerCore
 			this.checkDebug.UseVisualStyleBackColor = true;
 			this.checkDebug.CheckedChanged += new System.EventHandler(this.checkDebug_CheckedChanged);
 			// 
+			// buttonPause
+			// 
+			this.buttonPause.Dock = System.Windows.Forms.DockStyle.Fill;
+			this.buttonPause.Location = new System.Drawing.Point(101, 0);
+			this.buttonPause.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+			this.buttonPause.Name = "buttonPause";
+			this.buttonPause.Size = new System.Drawing.Size(28, 28);
+			this.buttonPause.TabIndex = 11;
+			this.buttonPause.Text = "P";
+			this.buttonPause.UseVisualStyleBackColor = true;
+			this.buttonPause.Click += new System.EventHandler(this.buttonPause_Click);
+			// 
 			// panelPreview
 			// 
 			this.panelPreview.AutoScroll = true;
@@ -353,18 +365,6 @@ namespace RaytracerCore
 			this.renderedImageBox.TabStop = false;
 			this.renderedImageBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.renderedImageBox_Click);
 			this.renderedImageBox.MouseMove += new System.Windows.Forms.MouseEventHandler(this.renderedImageBox_MouseMove);
-			// 
-			// buttonPause
-			// 
-			this.buttonPause.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.buttonPause.Location = new System.Drawing.Point(101, 0);
-			this.buttonPause.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-			this.buttonPause.Name = "buttonPause";
-			this.buttonPause.Size = new System.Drawing.Size(28, 28);
-			this.buttonPause.TabIndex = 11;
-			this.buttonPause.Text = "P";
-			this.buttonPause.UseVisualStyleBackColor = true;
-			this.buttonPause.Click += new System.EventHandler(this.buttonPause_Click);
 			// 
 			// MainWindow
 			// 
