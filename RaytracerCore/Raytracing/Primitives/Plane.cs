@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using RaytracerCore.Vectors;
 
@@ -30,6 +31,16 @@ namespace RaytracerCore.Raytracing.Primitives
 
 			// TODO: Make this reuse normal calculation from constructor, this isn't guaranteed to be a right angle
 			// Normal calculation from constructor likely results in a flipped normal, investigate
+		}
+
+		public override List<(string name, object value)> GetProperties()
+		{
+			var properties = base.GetProperties();
+
+			properties.Add(("Origin", Line.Origin));
+			properties.Add(("Normal", Normal));
+
+			return properties;
 		}
 
 		internal override Hit[] DoRayTrace(Ray ray)
@@ -75,6 +86,11 @@ namespace RaytracerCore.Raytracing.Primitives
 				return 0;
 
 			return double.PositiveInfinity;
+		}
+
+		public override string ToString()
+		{
+			return $"Plane @ [{Line.Origin}] N [{Normal}]";
 		}
 	}
 }

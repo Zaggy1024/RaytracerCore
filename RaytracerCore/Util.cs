@@ -11,7 +11,7 @@ namespace RaytracerCore
 	/// <summary>
 	/// Misc. utility functions used elsewhere in the code.
 	/// </summary>
-	public class Util
+	public static class Util
 	{
 		public static readonly double NearEnough = 1e-24;
 
@@ -145,29 +145,6 @@ namespace RaytracerCore
 			if (ray.Direction.Dot(b.Normal) > 0)
 				return a.Inside != b.Inside;
 			return a.Inside == b.Inside;
-		}
-
-		/// <summary>
-		/// Check whether an <see cref="IEnumerable{T}"/> contains a single value, and retrieve it to <paramref name="value"/> if so.
-		/// 
-		/// <para><paramref name="value"/> will be null if the collection contained more than one element.</para>
-		/// </summary>
-		/// <typeparam name="T">The type of value stored in the enumerable.</typeparam>
-		/// <param name="enumerable">The enumerable to retrieve from.</param>
-		/// <param name="value">The variable to store the retrieved value to.</param>
-		/// <returns>Whether the collection contained a single value.</returns>
-		public static bool RetrieveSingle<T>(IEnumerable<T> enumerable, out T value)
-		{
-			try
-			{
-				value = enumerable.Single();
-				return true;
-			}
-			catch (InvalidOperationException)
-			{
-				value = default;
-				return false;
-			}
 		}
 	}
 }

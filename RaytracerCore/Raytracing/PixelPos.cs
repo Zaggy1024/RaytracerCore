@@ -2,13 +2,13 @@
 {
 	public readonly struct PixelPos
 	{
-		public readonly int x;
-		public readonly int y;
+		public readonly int X;
+		public readonly int Y;
 
 		public PixelPos(int newX, int newY)
 		{
-			x = newX;
-			y = newY;
+			X = newX;
+			Y = newY;
 		}
 	}
 }

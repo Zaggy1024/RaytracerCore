@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -62,6 +63,38 @@ namespace RaytracerCore.Raytracing.Primitives
 				Vert1 = Vert1.WithNormal(Normal);
 				Vert2 = Vert2.WithNormal(Normal);
 			}
+		}
+
+		public override List<(string name, object value)> GetProperties()
+		{
+			var properties = base.GetProperties();
+
+			if (HasNormals)
+			{
+				properties.Add(("Vertices", new List<(string name, object value)>
+				{
+					("Vertex 0", Vert0.Position),
+					("Normal 0", Vert0.Normal),
+					("Vertex 1", Vert1.Position),
+					("Normal 1", Vert1.Normal),
+					("Vertex 2", Vert2.Position),
+					("Normal 2", Vert2.Normal)
+				}));
+			}
+			else
+			{
+				properties.Add(("Vertices", new List<(string name, object value)>
+				{
+					("Vertex 0", Vert0.Position),
+					("Vertex 1", Vert1.Position),
+					("Vertex 2", Vert2.Position)
+				}));
+				properties.Add(("Normal", Normal));
+			}
+
+			properties.Add(("Mirrored", Mirror));
+
+			return properties;
 		}
 
 		public override void Transform(Mat4x4D forward, Mat4x4D inverse)
@@ -231,21 +264,39 @@ namespace RaytracerCore.Raytracing.Primitives
 		{
 			Vec4D center = GetCenter();
 			double dist = 0;
+			Vec4D v0 = Vert0.Position - center;
+			Vec4D v1 = Vert1.Position - center;
+			Vec4D v2 = Vert2.Position - center;
+			Vec4D v3 = default;
+
+			if (Mirror)
+				v3 = Vert0.Position + Edge0to1 + Edge0to2 - center;
 
 			if (direction == Vec4D.Zero)
 			{
-				dist = Math.Max((Vert0.Position - center).Length, dist);
-				dist = Math.Max((Vert1.Position - center).Length, dist);
-				dist = Math.Max((Vert2.Position - center).Length, dist);
+				dist = Math.Max(v0.Length, dist);
+				dist = Math.Max(v1.Length, dist);
+				dist = Math.Max(v2.Length, dist);
+
+				if (v3 != default)
+					dist = Math.Max(v3.Length, dist);
 			}
 			else
 			{
-				dist = Math.Max((Vert0.Position - center).Dot(direction), dist);
-				dist = Math.Max((Vert1.Position - center).Dot(direction), dist);
-				dist = Math.Max((Vert2.Position - center).Dot(direction), dist);
+				dist = Math.Max(v0.Dot(direction), dist);
+				dist = Math.Max(v1.Dot(direction), dist);
+				dist = Math.Max(v2.Dot(direction), dist);
+
+				if (v3 != default)
+					dist = Math.Max(v3.Dot(direction), dist);
 			}
 
 			return dist;
+		}
+
+		public override string ToString()
+		{
+			return $"Triangle @ [{GetCenter()}] N {(HasNormals ? "Per Vert" : $"[{Normal}]")}";
 		}
 	}
 }

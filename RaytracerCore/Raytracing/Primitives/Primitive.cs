@@ -1,7 +1,9 @@
-﻿using RaytracerCore.Raytracing.Objects;
+﻿using System;
+using System.Collections.Generic;
+
+using RaytracerCore.Raytracing.Objects;
 using RaytracerCore.Raytracing.Acceleration;
 using RaytracerCore.Vectors;
-using System;
 
 namespace RaytracerCore.Raytracing.Primitives
 {
@@ -13,13 +15,17 @@ namespace RaytracerCore.Raytracing.Primitives
 	{
 		public IObject Parent = null;
 
+		private DoubleColor _Specular;
+		private DoubleColor _Refraction;
+
 		public Primitive()
 		{
 			// Define material properties
 			// TODO: Make material representation to share between primitives, possibly with texture mapping
 			Emission = DoubleColor.Black;
 			Diffuse = DoubleColor.Black;
-			Specular = DoubleColor.Black;
+			_Specular = DoubleColor.Black;
+			_Refraction = DoubleColor.Black;
 			Shininess = 100;
 		}
 
@@ -103,15 +109,26 @@ namespace RaytracerCore.Raytracing.Primitives
 		/// </summary>
 		public double Shininess { get; set; }
 
+		public bool IsReflective => Shininess > 0;
+
 		/// <summary>
 		/// The amount and color of light to be bounced across the normal of the surface.
 		/// </summary>
-		public DoubleColor Specular { get; set; }
+		public DoubleColor Specular
+		{
+			get => IsReflective ? _Specular : DoubleColor.Black;
+			set => _Specular = value;
+		}
 
 		/// <summary>
 		/// The amount and color of light to be transmitted through the surface.
 		/// </summary>
-		public DoubleColor Refraction { get; set; }
+		public DoubleColor Refraction
+		{
+			get => IsReflective ? _Refraction : DoubleColor.Black;
+			set => _Refraction = value;
+		}
+
 		/// <summary>The refractive index of the surface.
 		/// When using this value, any ray entering the primitive should enter an inside=false hit and exit an inside=true hit.</summary>
 		public double RefractiveIndex { get; set; }
@@ -119,5 +136,34 @@ namespace RaytracerCore.Raytracing.Primitives
 		// IBoundedObject methods
 		public abstract Vec4D GetCenter();
 		public abstract double GetMaxCenterDistance(Vec4D direction);
+
+		protected static void AddIfNonZero(string name, DoubleColor color, List<(string name, object value)> properties)
+		{
+			if (color != DoubleColor.Black && color != DoubleColor.Placeholder)
+				properties.Add((name, color));
+		}
+
+		protected static void AddIfNonZero(string name, double value, List<(string name, object value)> properties)
+		{
+			if (value != 0)
+				properties.Add((name, value));
+		}
+
+		public virtual List<(string name, object value)> GetProperties()
+		{
+			var properties = new List<(string name, object value)>();
+			AddIfNonZero("Emission", Emission, properties);
+			AddIfNonZero("Diffuse", Diffuse, properties);
+			properties.Add(("Shininess", Shininess));
+
+			if (IsReflective)
+			{
+				AddIfNonZero("Specular", Specular, properties);
+				AddIfNonZero("Refraction", Refraction, properties);
+			}
+
+			properties.Add(("Refractive Index", RefractiveIndex));
+			return properties;
+		}
 	}
 }

@@ -117,17 +117,10 @@ namespace RaytracerCore.Raytracing
 				double refrLum = hit.Primitive.Refraction.Luminance;
 				double emisLum = hit.Primitive.Emission.Luminance;
 
-				// We don't need to handle 
-				if (hit.Primitive.Shininess == 0)
-				{
-					specLum = 0;
-					refrLum = 0;
-				}
-
 				double iorRatio = 0;
 
 				// Calculate ratio of reflection to transmission on this hit
-				if (hit.Primitive.RefractiveIndex != 0)
+				if ((refrLum > 0 | specLum > 0) && hit.Primitive.RefractiveIndex != 0)
 				{
 					double cosIn = -roughNormal.Dot(ray.Direction);
 
@@ -276,18 +269,18 @@ namespace RaytracerCore.Raytracing
 			return debug.TakeWhile((r) => r != null).ToArray();
 		}
 
-		public Ray GetCameraRay(Camera camera, int x, int y)
+		public static Ray GetCameraRay(Camera camera, Random rand, int x, int y)
 		{
 			double dofAmt = camera.dofAmount;
-			double subX = x + Rand.NextDouble();
-			double subY = y + Rand.NextDouble();
+			double subX = x + rand.NextDouble();
+			double subY = y + rand.NextDouble();
 			Ray ray = camera.GetRay(subX, subY).Offset(camera.imagePlane);
 
 			if (dofAmt != 0)
 			{
 				Vec4D focusPoint = ray.GetPoint(camera.focalLength - camera.imagePlane);
-				double dist = Math.Sqrt(Rand.NextDouble()) * dofAmt;
-				double angle = Rand.NextDouble() * Math.PI * 2;
+				double dist = Math.Sqrt(rand.NextDouble()) * dofAmt;
+				double angle = rand.NextDouble() * Math.PI * 2;
 
 				double offX = Math.Cos(angle) * dist;
 				double offY = Math.Sin(angle) * dist;
@@ -300,12 +293,12 @@ namespace RaytracerCore.Raytracing
 
 		public DoubleColor GetColor(int x, int y)
 		{
-			return GetColor(GetCameraRay(Scene.Camera, x, y));
+			return GetColor(GetCameraRay(Scene.Camera, Rand, x, y));
 		}
 
 		public DebugRay[] GetDebugTrace(int x, int y)
 		{
-			return GetDebugTrace(GetCameraRay(Scene.Camera, x, y));
+			return GetDebugTrace(GetCameraRay(Scene.Camera, Rand, x, y));
 		}
 
 		public void Render()
@@ -322,7 +315,7 @@ namespace RaytracerCore.Raytracing
 
 					for (int i = 0; i < 1; i++)
 					{
-						DoubleColor color = GetColor(pos.x, pos.y);
+						DoubleColor color = GetColor(pos.X, pos.Y);
 
 						if (color == DoubleColor.Placeholder)
 							FullRaytracer.AddMiss(pos);

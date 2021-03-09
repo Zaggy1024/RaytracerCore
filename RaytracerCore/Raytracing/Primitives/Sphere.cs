@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -43,6 +44,17 @@ namespace RaytracerCore.Raytracing.Primitives
 				RadiusValue = value;
 				RadiusSqr = value * value;
 			}
+		}
+
+		public override List<(string name, object value)> GetProperties()
+		{
+			var properties = base.GetProperties();
+
+			properties.Add(("Center", Center));
+			properties.Add(("Radius", Radius));
+			properties.Add(("Matrix", MatrixToObject));
+
+			return properties;
 		}
 
 		/// <summary>Perform a ray trace using AVX2 and FMA instructions. This is architecture-specific.</summary>
@@ -218,10 +230,15 @@ namespace RaytracerCore.Raytracing.Primitives
 
 		public override double GetMaxCenterDistance(Vec4D direction)
 		{
-			if (Transformed)
-				throw new NotImplementedException();
+			//if (Transformed)
+				//throw new NotImplementedException();
 
 			return Radius;
+		}
+
+		public override string ToString()
+		{
+			return $"Sphere {(Transformed ? "T " : "")}@ [{Center}] R {Radius}";
 		}
 	}
 }

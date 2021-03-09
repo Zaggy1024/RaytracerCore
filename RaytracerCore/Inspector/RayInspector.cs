@@ -47,118 +47,23 @@ namespace RaytracerCore.Inspector
 			inputY.Value = y;
 		}
 
-		private TreeNode Node(string text, string name)
-		{
-			return new TreeNode(text) { Name = name };
-		}
-
-		private TreeNode Node(string name)
-		{
-			return Node(name, name);
-		}
-
-		private TreeNode VectorNode(Vec4D vector, string name)
-		{
-			TreeNode node = Node($"{name} (Vector {vector}):", name);
-			node.Nodes.Add($"x: {vector.X}");
-			node.Nodes.Add($"y: {vector.Y}");
-			node.Nodes.Add($"z: {vector.Z}");
-			node.Nodes.Add($"w: {vector.W}");
-			node.Nodes.Add($"Length: {vector.Length}");
-			return node;
-		}
-
-		private TreeNode ColorNode(DoubleColor color, string name)
-		{
-			TreeNode node = Node($"{name} (Color {color}):", name);
-			node.Nodes.Add($"r: {color.R}");
-			node.Nodes.Add($"g: {color.G}");
-			node.Nodes.Add($"b: {color.B}");
-			node.Nodes.Add($"Luminance: {color.Luminance}");
-			return node;
-		}
-
-		private TreeNode ValueNode(object value, string name)
-		{
-			return new TreeNode($"{name}: {value}");
-		}
-
-		private TreeNode PrimitiveNode(Primitive obj, string name)
-		{
-			if (obj == null)
-				return Node($"{name}: None", name);
-
-			TreeNode node = Node($"{name} ({obj.GetType().Name})", name);
-			node.Nodes.Add(ValueNode(Raytracer.Scene.GetID(obj), "Index"));
-
-			node.Nodes.Add(ColorNode(obj.Diffuse, "Diffuse"));
-
-			node.Nodes.Add(ColorNode(obj.Specular, "Specular"));
-			node.Nodes.Add(ValueNode(obj.Shininess, "Shininess"));
-
-			node.Nodes.Add(ColorNode(obj.Refraction, "Refraction"));
-			node.Nodes.Add(ValueNode(obj.RefractiveIndex, "Refractive Index"));
-
-			node.Nodes.Add(ColorNode(obj.Emission, "Emission"));
-
-			node.Expand();
-			return node;
-		}
-
-		private TreeNode HitNode(Hit hit, string name)
-		{
-			string text = $"{name}";
-			string extra = "";
-
-			if (name != "Hit")
-				extra += "Hit";
-
-			if (hit == default)
-			{
-				if (extra != "")
-					extra = " ";
-
-				extra += "Missed";
-			}
-
-			if (extra != "")
-				text += $"({extra})";
-
-			text += ":";
-			TreeNode node = Node(text, name);
-
-			if (hit != default)
-			{
-				node.Nodes.Add(VectorNode(hit.Position, "Position"));
-				node.Nodes.Add(ValueNode(hit.Distance, "Distance"));
-				node.Nodes.Add(PrimitiveNode(hit.Primitive, "Object"));
-				node.Nodes.Add(VectorNode(hit.Normal, "Normal"));
-				node.Nodes.Add(ValueNode(hit.Inside, "Inside"));
-
-#if TRACE
-				node.Nodes.Add(ValueNode(hit.DebugText, "Debug"));
-#endif
-			}
-
-			node.Expand();
-			return node;
-		}
-
 		private void UpdateCurrentRay()
 		{
 			if (listRays.SelectedIndices.Count > 0)
 			{
 				Raytracer.DebugRay ray = CurrentTrace[listRays.SelectedIndices[0]];
 
-				TreeNode hitNode = HitNode(ray.Hit, "Hit");
+				TreeNode hitNode = Nodifier.CreateHit(ray.Hit, "Hit", Raytracer.Scene);
 				hitNode.Expand();
+
+				hitNode.Nodes["Primitive"].Expand();
 
 				treeRayProperties.Nodes.Clear();
 				treeRayProperties.Nodes.Add(hitNode);
-				treeRayProperties.Nodes.Add(ValueNode(ray.Type, "Result"));
+				treeRayProperties.Nodes.Add(Nodifier.CreateText(ray.Type, "Result"));
 
 				if (!double.IsNaN(ray.FresnelRatio))
-					treeRayProperties.Nodes.Add(ValueNode(ray.FresnelRatio, "Fresnel Ratio"));
+					treeRayProperties.Nodes.Add(Nodifier.CreateText(ray.FresnelRatio, "Fresnel Ratio"));
 			}
 			else
 			{
@@ -232,13 +137,13 @@ namespace RaytracerCore.Inspector
 
 		public void RunTraces()
 		{
-			lock (Raytracer.DebugRaytracer)
+			lock (Raytracer.DebugPathtracer)
 			{
 				Raytracer.DebugRay[][] traces = new Raytracer.DebugRay[Samples][];
 
 				for (int i = 0; i < inputSamples.Value; i++)
 				{
-					traces[i] = Raytracer.DebugRaytracer.GetDebugTrace(X, Y);
+					traces[i] = Raytracer.DebugPathtracer.GetDebugTrace(X, Y);
 				}
 
 				Traces.Clear();

@@ -1,22 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using System.Threading;
 using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
-using System.Diagnostics;
 using System.IO;
 using System.Globalization;
 
 using RaytracerCore.Raytracing;
-using RaytracerCore.Vectors;
 using RaytracerCore.Inspector;
-using System.Runtime.Intrinsics;
 using System.Runtime.CompilerServices;
 
 namespace RaytracerCore
@@ -29,6 +21,12 @@ namespace RaytracerCore
 		string CurrentPath;
 
 		readonly List<RayInspector> OpenInspectors = new List<RayInspector>();
+		SceneInspector SceneInspector;
+
+		Image RenderedImage = null;
+		Image DebugImage = null;
+		bool DisplayDebug = false;
+		object DebugItem = null;
 
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 		public MainWindow()
@@ -43,17 +41,36 @@ namespace RaytracerCore
 			UpdateSceneButtons();
 		}
 
-		private void UpdateImage(Bitmap bitmap)
+		private void UpdateImages()
 		{
 			Util.Assert(SynchronizationContext.Current == Context, "Do not update the displayed image off the GUI thread.");
+			Util.Assert(DebugImage == null || RenderedImage.Size == DebugImage.Size, "Rendered and debug image sizes do not match.");
 
-			if (bitmap == null)
-				return;
+			if (imageRendered.Image == null || imageRendered.Image.Size != RenderedImage.Size)
+			{
+				imageRendered.Image = new Bitmap(RenderedImage.Width, RenderedImage.Height);
+				imageRendered.Size = RenderedImage.Size;
+			}
 
-			renderedImageBox.Image = bitmap;
-			renderedImageBox.Width = bitmap.Width;
-			renderedImageBox.Height = bitmap.Height;
-			renderedImageBox.Refresh();
+			using (Graphics graphics = Graphics.FromImage(imageRendered.Image))
+			{
+				graphics.Clear(Color.Transparent);
+
+				if (RenderedImage != null)
+					graphics.DrawImage(RenderedImage, Point.Empty);
+
+				if (DebugImage != null && DisplayDebug)
+				{
+					ImageAttributes attributes = new ImageAttributes();
+					attributes.SetColorMatrix(new ColorMatrix() { Matrix33 = .5F });
+					graphics.DrawImage(DebugImage,
+						new Rectangle(Point.Empty, DebugImage.Size),
+						0, 0, DebugImage.Width, DebugImage.Height,
+						GraphicsUnit.Pixel, attributes);
+				}
+			}
+
+			imageRendered.Invalidate();
 		}
 
 		private void RestartRender(Action change)
@@ -83,13 +100,15 @@ namespace RaytracerCore
 					{
 						Bitmap image = new Bitmap(CurrentRaytracer.Scene.Width, CurrentRaytracer.Scene.Height, PixelFormat.Format32bppArgb);
 						Graphics.FromImage(image).Clear(CurrentRaytracer.Scene.BackgroundRGB.ToColor(CurrentRaytracer.Scene.BackgroundAlpha));
-						UpdateImage(image);
+						RenderedImage = image;
+						UpdateImages();
 
 						UpdateSceneButtons();
+
+						SceneInspector?.ChangeScene(CurrentRaytracer.Scene);
 					}, null);
 
 					CurrentRaytracer.Start();
-
 				}
 			}).Start();
 		}
@@ -99,7 +118,7 @@ namespace RaytracerCore
 			RestartRender(null);
 		}
 
-		private void UpdateStatus(FullRaytracer raytracer, string statusText, double progress, Bitmap bitmap)
+		private void UpdateRenderedImage(FullRaytracer raytracer, string statusText, double progress, Bitmap bitmap)
 		{
 			Context.Post((v) => {
 				if (raytracer == CurrentRaytracer && Visible)
@@ -111,18 +130,24 @@ namespace RaytracerCore
 					statusStrip.Update();
 
 					if (bitmap != null)
-						UpdateImage(bitmap);
+					{
+						RenderedImage = bitmap;
+						UpdateImages();
+					}
 				}
 			}, null);
 		}
 
-		private void SetPixel(FullRaytracer raytracer, PixelPos pos, Color color)
+		private void UpdateDebugImage(FullRaytracer raytracer, Bitmap bitmap)
 		{
 			Context.Post((v) => {
-				if (raytracer == CurrentRaytracer && renderedImageBox.Image is Bitmap bitmap)
+				if (raytracer == CurrentRaytracer && Visible)
 				{
-					bitmap.SetPixel(pos.x, pos.y, color);
-					renderedImageBox.Invalidate();
+					if (bitmap != null)
+					{
+						DebugImage = bitmap;
+						UpdateImages();
+					}
 				}
 			}, null);
 		}
@@ -146,7 +171,7 @@ namespace RaytracerCore
 
 			if (scene != null)
 			{
-				labelScene.Text = Path.GetFileName(path);
+				buttonScene.Text = Path.GetFileName(path);
 
 				comboCamera.Items.Clear();
 				for (int i = 0; i < scene.Cameras.Count; i++)
@@ -156,9 +181,10 @@ namespace RaytracerCore
 				CloseInspectors();
 
 				RestartRender(() => {
-					CurrentRaytracer = new FullRaytracer(scene, UpdateStatus, SetPixel);
-					CurrentPath = path;
+					CurrentRaytracer = new FullRaytracer(scene, Environment.ProcessorCount, UpdateRenderedImage, UpdateDebugImage);
 					SetExposure();
+
+					CurrentPath = path;
 				});
 			}
 		}
@@ -167,14 +193,6 @@ namespace RaytracerCore
 		{
 			if (CurrentRaytracer != null)
 			{
-				// If we're in the GUI thread, update asynchronously using thread pool.
-				/*if (SynchronizationContext.Current == Context)
-				{
-					ThreadPool.QueueUserWorkItem((o) => UpdateCurrentImage());
-					return;
-				}
-
-				UpdateImage(CurrentRaytracer.GetBitmap());*/
 				CurrentRaytracer.QueueUpdate();
 			}
 		}
@@ -223,7 +241,7 @@ namespace RaytracerCore
 							break;
 					}
 
-					renderedImageBox.Image.Save(dialog.FileName, format);
+					RenderedImage.Save(dialog.FileName, format);
 				}
 			}
 		}
@@ -277,7 +295,10 @@ namespace RaytracerCore
 
 		private void UpdateSceneButtons()
 		{
-			buttonReload.Enabled = buttonPause.Enabled = CurrentRaytracer != null;
+			bool hasScene = CurrentRaytracer != null;
+			buttonScene.Visible = hasScene;
+			buttonReload.Enabled = hasScene;
+			buttonPause.Enabled = hasScene;
 
 			if (CurrentRaytracer?.IsPaused == false)
 				buttonPause.Text = "❚❚";
@@ -323,14 +344,10 @@ namespace RaytracerCore
 			}
 		}
 
-		private void checkDebug_CheckedChanged(object sender, EventArgs e)
+		private void RefreshDebugOverlay()
 		{
-			if (CurrentRaytracer != null)
-			{
-				//CurrentRaytracer.Running = !checkDebug.Checked;
-				CurrentRaytracer.Scene.DebugGeom = checkDebug.Checked;
-				RestartRender();
-			}
+			DebugImage = null;
+			CurrentRaytracer.QueueDebugUpdate();
 		}
 
 		private void renderedImageBox_MouseMove(object sender, MouseEventArgs mouseEvent)
@@ -343,6 +360,101 @@ namespace RaytracerCore
 					$"Missed: {samples.misses} " +
 					$"Color: {samples.GetColor(CurrentRaytracer.Scene.BackgroundRGB, CurrentRaytracer.Scene.BackgroundAlpha, CurrentRaytracer.Exposure).ToArgb():X8}";
 			}
+		}
+
+		private void SetDebugMode(SceneInspector.DisplayCategory category)
+		{
+			switch (category)
+			{
+				case SceneInspector.DisplayCategory.Scene:
+					CurrentRaytracer.DebugRaycaster.SetMode(DebugRaycaster.DisplayMode.Primitives);
+					break;
+				case SceneInspector.DisplayCategory.BVH:
+					CurrentRaytracer.DebugRaycaster.SetMode(DebugRaycaster.DisplayMode.BoundingVolumes);
+					break;
+			}
+		}
+
+		private void SceneInspector_DisplaySettingChanged(object sender, SceneInspector.DisplaySettingChangedEventArgs e)
+		{
+			if (CurrentRaytracer != null && sender is SceneInspector inspector && inspector == SceneInspector)
+			{
+				bool refresh = false;
+
+				if (e.ChangedSettings.HasFlag(SceneInspector.DisplaySettingField.OverlayEnabled))
+				{
+					DisplayDebug = e.Settings.OverlayEnabled;
+					refresh = DisplayDebug && DebugImage == null;
+				}
+
+				if (e.ChangedSettings.HasFlag(SceneInspector.DisplaySettingField.Category))
+				{
+					SetDebugMode(e.Settings.Category);
+					refresh = true;
+				}
+
+				if (e.ChangedSettings.HasFlag(SceneInspector.DisplaySettingField.DisplaySelected)
+					|| e.ChangedSettings.HasFlag(SceneInspector.DisplaySettingField.Selection))
+				{
+					object newDebugItem = null;
+
+					if (e.Settings.DisplaySelected)
+					{
+						if (CurrentRaytracer.DebugRaycaster.SetDisplayOnly(e.Settings.Selection))
+							newDebugItem = e.Settings.Selection;
+					}
+
+					// If our effective display item has changed, update the overlay if needed
+					if (newDebugItem != DebugItem)
+					{
+						if (newDebugItem == null)
+						{
+							CurrentRaytracer.DebugRaycaster.ClearDisplayOnly();
+							SetDebugMode(e.Settings.Category);
+						}
+
+						DebugItem = newDebugItem;
+						refresh = true;
+					}
+				}
+
+				if (refresh)
+				{
+					// Refresh the overlay now, or set it to null to be refreshed on next display if disabled
+					if (DisplayDebug)
+						RefreshDebugOverlay();
+					else
+						DebugImage = null;
+				}
+			}
+		}
+
+		private void SceneInspector_Disposed(object sender, EventArgs e)
+		{
+			SceneInspector = null;
+		}
+
+		private void OpenSceneInspector()
+		{
+			if (CurrentRaytracer != null)
+			{
+				if (SceneInspector == null)
+				{
+					SceneInspector = new SceneInspector(CurrentRaytracer.Scene);
+					SceneInspector.DisplaySettingChanged += SceneInspector_DisplaySettingChanged;
+					SceneInspector.Disposed += SceneInspector_Disposed;
+				}
+
+				if (SceneInspector.Visible)
+					SceneInspector.Select();
+				else
+					SceneInspector.Show(this);
+			}
+		}
+
+		private void buttonScene_Click(object sender, EventArgs e)
+		{
+			OpenSceneInspector();
 		}
 	}
 }

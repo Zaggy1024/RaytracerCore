@@ -140,5 +140,10 @@ namespace RaytracerCore.Raytracing.Primitives
 
 			return dist;
 		}
+
+		public override string ToString()
+		{
+			return $"Cube @ [{GetCenter()}] S {Maximum - Minimum}";
+		}
 	}
 }

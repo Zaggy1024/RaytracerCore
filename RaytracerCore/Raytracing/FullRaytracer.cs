@@ -5,7 +5,6 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Threading;
 using System.Linq;
-using System.Windows.Forms;
 
 namespace RaytracerCore.Raytracing
 {
@@ -14,54 +13,52 @@ namespace RaytracerCore.Raytracing
 	/// </summary>
 	public class FullRaytracer
 	{
-		// Whether the raytracer threads will run on rectangle sections of the output frame.
-		private const bool Sections = false;
 		// Whether to randomize the sample order within each range a thread will work in.
-		private const bool Randomize = true;
+		protected const bool Randomize = true;
 
-		// Whether to update the display instantly. (VERY slow)
-		private const bool InstantUpdate = false;
-		
-		// The number of sections to use to split up threads.
-		// When not in sectioned mode, the number of threads will still be H * V.
-		// TODO: Make this automatic
-		private const int PartsH = 4;
-		private const int PartsV = 3;
-
-		private const int Interval = 100;
+		protected const int Interval = 100;
 
 		public Scene Scene;
 		public double Exposure;
 
-		private SampleSet[,] SampleSets;
-		private readonly Action<FullRaytracer, string, double, Bitmap> UpdateStatusCallback;
-		private readonly Action<FullRaytracer, PixelPos, Color> UpdatePixelCallback;
+		protected int Threads;
 
-		private volatile bool Stopping = false;
-		private volatile bool Running = false;
-		private volatile bool Paused = false;
-		private readonly List<Raytracer> RunningTracers = new List<Raytracer>();
+		protected SampleSet[,] SampleSets;
+		protected readonly Action<FullRaytracer, string, double, Bitmap> UpdateStatusCallback;
+		protected readonly Action<FullRaytracer, Bitmap> UpdateDebugCallback;
 
-		private EventWaitHandle IntervalWaiter;
-		private EventWaitHandle MainWaiter;
-		private EventWaitHandle ChildWaiter;
+		protected volatile bool Stopping = false;
+		protected volatile bool Running = false;
+		protected volatile bool Paused = false;
+		protected readonly List<Raytracer> RunningTracers = new List<Raytracer>();
 
-		public readonly Raytracer DebugRaytracer;
+		protected EventWaitHandle IntervalWaiter;
+		protected EventWaitHandle MainWaiter;
+		protected EventWaitHandle ChildWaiter;
 
-		public FullRaytracer(Scene scene, Action<FullRaytracer, string, double, Bitmap> updateStatus, Action<FullRaytracer, PixelPos, Color> updatePixel)
+		public readonly Raytracer DebugPathtracer;
+
+		public readonly DebugRaycaster DebugRaycaster;
+		protected bool DebugChanged = false;
+
+		public FullRaytracer(Scene scene, int threads, Action<FullRaytracer, string, double, Bitmap> updateStatus, Action<FullRaytracer, Bitmap> updateDebug)
 		{
 			Scene = scene;
-			UpdateStatusCallback = updateStatus;
-			UpdatePixelCallback = updatePixel;
+			Threads = threads;
 
-			DebugRaytracer = new Raytracer(this, scene, new PixelPos[0]);
+			UpdateStatusCallback = updateStatus;
+			UpdateDebugCallback = updateDebug;
 
 			IntervalWaiter = new EventWaitHandle(true, EventResetMode.AutoReset);
 
 			MainWaiter = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
 			ChildWaiter = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
-		}
 
+			DebugPathtracer = new Raytracer(this, scene, new PixelPos[0]);
+
+			DebugRaycaster = new DebugRaycaster(scene);
+		}
+		
 		/// <summary>
 		/// Send a status update to the callback.
 		/// </summary>
@@ -69,20 +66,7 @@ namespace RaytracerCore.Raytracing
 		/// <param name="progress">The current progress value.</param>
 		protected void UpdateStatus(string status, double progress)
 		{
-			if (InstantUpdate)
-				UpdateStatusCallback?.Invoke(this, status, progress, null);
-			else
-				UpdateStatusCallback?.Invoke(this, status, progress, GetBitmap());
-		}
-
-		/// <summary>
-		/// Send an update for an individual pixel to the callback.
-		/// </summary>
-		/// <param name="position">The pixel position to update.</param>
-		private void UpdatePixel(PixelPos position)
-		{
-			if (InstantUpdate)
-				UpdatePixelCallback?.Invoke(this, position, GetSampleSet(position).GetColor(Scene.BackgroundRGB, Scene.BackgroundAlpha, Exposure));
+			UpdateStatusCallback?.Invoke(this, status, progress, GetBitmap());
 		}
 
 		/// <summary>
@@ -100,7 +84,7 @@ namespace RaytracerCore.Raytracing
 		/// <summary>
 		/// Get all pixel positions in a rectangle.
 		/// </summary>
-		private PixelPos[] GetPixelRange(Rectangle rect)
+		public static PixelPos[] GetPixelRange(Rectangle rect)
 		{
 			PixelPos[] pixels = new PixelPos[rect.Width * rect.Height];
 
@@ -137,7 +121,7 @@ namespace RaytracerCore.Raytracing
 		/// <param name="x">The pixel position.</param>
 		public SampleSet GetSampleSet(PixelPos position)
 		{
-			return GetSampleSet(position.x, position.y);
+			return GetSampleSet(position.X, position.Y);
 		}
 
 		/// <summary>
@@ -147,8 +131,7 @@ namespace RaytracerCore.Raytracing
 		/// <param name="color">The color of the sample.</param>
 		public void AddSample(PixelPos pos, DoubleColor color)
 		{
-			SampleSets[pos.x, pos.y] = SampleSets[pos.x, pos.y].AddSample(color);
-			UpdatePixel(pos);
+			SampleSets[pos.X, pos.Y] = SampleSets[pos.X, pos.Y].AddSample(color);
 		}
 
 		/// <summary>
@@ -157,8 +140,7 @@ namespace RaytracerCore.Raytracing
 		/// <param name="pos">The pixel position to add a miss to.</param>
 		public void AddMiss(PixelPos pos)
 		{
-			SampleSets[pos.x, pos.y] = SampleSets[pos.x, pos.y].AddMiss();
-			UpdatePixel(pos);
+			SampleSets[pos.X, pos.Y] = SampleSets[pos.X, pos.Y].AddMiss();
 		}
 
 		/// <summary>
@@ -192,6 +174,16 @@ namespace RaytracerCore.Raytracing
 			return bitmap;
 		}
 
+		private void UpdateDebug()
+		{
+			if (DebugChanged)
+			{
+				UpdateDebugCallback?.Invoke(this, DebugRaycaster.RenderDebug());
+
+				DebugChanged = false;
+			}
+		}
+
 		/// <summary>
 		/// Start the raytracer.
 		/// </summary>
@@ -218,58 +210,28 @@ namespace RaytracerCore.Raytracing
 			Stopwatch stopwatch = new Stopwatch();
 			stopwatch.Start();
 
-			if (Sections)
+			// Initialize sets of pixels for threads to work with
+			PixelPos[] allPixels = GetPixelRange(new Rectangle(0, 0, w, h));
+
+			if (Randomize)
+				allPixels = allPixels.OrderBy((p) => rand.NextDouble()).ToArray();
+
+			for (int i = 0; i < Threads; i++)
 			{
-				double hPartSize = w / (double)PartsH;
-				double vPartSize = h / (double)PartsV;
-
-				for (int hPart = 0; (hPart < PartsH) && !Stopping; hPart++)
-				{
-					int left = (int)(hPart * hPartSize);
-					int right = (int)((hPart + 1) * hPartSize);
-
-					for (int vPart = 0; (vPart < PartsV) && !Stopping; vPart++)
-					{
-						int top = (int)(vPart * vPartSize);
-						int bottom = (int)((vPart + 1) * vPartSize);
-
-						PixelPos[] pixels = GetPixelRange(Rectangle.FromLTRB(left, top, right, bottom));
-
-						if (Randomize)
-							pixels = pixels.OrderBy((p) => rand.NextDouble()).ToArray();
-
-						Raytracer tracer = new Raytracer(this, Scene, pixels);
-						RunningTracers.Add(tracer);
-					}
-				}
-			}
-			else
-			{
-				PixelPos[] allPixels = GetPixelRange(new Rectangle(0, 0, w, h));
-
-				if (Randomize)
-					allPixels = allPixels.OrderBy((p) => rand.NextDouble()).ToArray();
-
-				int parts = PartsH * PartsV;
-
-				for (int i = 0; i < parts; i++)
-				{
-					int start = (int)((allPixels.Length / (double)parts) * i);
-					int end = (int)((allPixels.Length / (double)parts) * (i + 1));
-					Raytracer tracer = new Raytracer(this, Scene, allPixels.Skip(start).Take(end - start).ToArray());
-					RunningTracers.Add(tracer);
-				}
+				int start = (int)((allPixels.Length / (double)Threads) * i);
+				int end = (int)((allPixels.Length / (double)Threads) * (i + 1));
+				Raytracer tracer = new Raytracer(this, Scene, allPixels[start..end]);
+				RunningTracers.Add(tracer);
 			}
 
 			// Start threads
-			int tracers = RunningTracers.Count;
-
 			foreach (Raytracer tracer in RunningTracers)
 			{
 				new Thread(tracer.Render).Start();
 				while (!tracer.Running) ;
 			}
 
+			// Status/image updating loop
 			Stopwatch sleepTimer = new Stopwatch();
 
 			while (RunningTracers.Count > 0)
@@ -308,6 +270,8 @@ namespace RaytracerCore.Raytracing
 						(samples / time.TotalSeconds) / (w * h),
 						perPixel),
 					progress);
+
+				UpdateDebug();
 
 				//prevMs = estMs;
 
@@ -352,6 +316,12 @@ namespace RaytracerCore.Raytracing
 				MainWaiter.Set();
 				MainWaiter.Reset();
 			}
+		}
+
+		public void QueueDebugUpdate()
+		{
+			DebugChanged = true;
+			QueueUpdate();
 		}
 
 		public bool IsPaused => Paused;
