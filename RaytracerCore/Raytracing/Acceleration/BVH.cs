@@ -35,13 +35,14 @@ namespace RaytracerCore.Raytracing.Acceleration
 			foreach (BVH<T> node in sorted)
 			{
 				// Do not pair up any nodes containing already-paired children
-				if (node.Children.Any((n) => !remaining.ContainsKey(n)))
+				if (!remaining.ContainsKey(node.Left) ||
+					!remaining.ContainsKey(node.Right))
 					continue;
 
 				result.Add(node);
 
-				foreach (BVH<T> child in node.Children)
-					remaining.Remove(child);
+				remaining.Remove(node.Left);
+				remaining.Remove(node.Right);
 			}
 
 			result.AddRange(remaining.OrderBy((kvp) => kvp.Value).Select((kvp) => kvp.Key));
@@ -52,7 +53,6 @@ namespace RaytracerCore.Raytracing.Acceleration
 		public static BVH<T> Construct<T>(List<T> objects) where T : class, IBoundedObject
 		{
 			List<BVH<T>> intermediate = objects.Select((o) => new BVH<T>(o)).ToList();
-			BVH<T> single;
 
 			while (intermediate.Count > 1)
 			{
@@ -68,7 +68,8 @@ namespace RaytracerCore.Raytracing.Acceleration
 	public class BVH<T> where T : class, IBoundedObject
 	{
 		public readonly T Object;
-		public readonly BVH<T>[] Children;
+		public readonly BVH<T> Left;
+		public readonly BVH<T> Right;
 
 		public readonly IBoundingVolume Volume;
 
@@ -78,23 +79,21 @@ namespace RaytracerCore.Raytracing.Acceleration
 		public BVH(T obj)
 		{
 			Object = obj;
-			Children = default;
+			Left = Right = null;
 			Volume = AABB.CreateFromBounded(obj);
 		}
 
-		public BVH(params BVH<T>[] children)
+		public BVH(BVH<T> left, BVH<T> right)
 		{
-			Util.Assert(children.Length > 0, "Non-leaf BVH node cannot be constructed with no children.");
-
 			Object = default;
-			Children = children;
-			Volume = children[0].Volume;
-
-			foreach (BVH<T> child in children.Skip(1))
-				Volume = AABB.Combine(Volume, child.Volume);
+			Left = left;
+			Right = right;
+			Volume = AABB.Combine(left.Volume, right.Volume);
 		}
 
 		public bool IsLeaf => Object != default;
+
+		public BVH<T>[] Children => new BVH<T>[] { Left, Right };
 
 		/// <summary>
 		/// Intersect a ray with all bounding volumes, adding all intersections to the provided list.
@@ -117,8 +116,8 @@ namespace RaytracerCore.Raytracing.Acceleration
 			}
 
 			// Otherwise, begin intersecting the children
-			foreach (BVH<T> child in Children)
-				child.IntersectAll(ray, ref list);
+			Left.IntersectAll(ray, ref list);
+			Right.IntersectAll(ray, ref list);
 		}
 
 		/// <summary>
@@ -173,8 +172,8 @@ namespace RaytracerCore.Raytracing.Acceleration
 
 		public List<BVH<T>> Flatten()
 		{
-			if (Children.Length == 0)
-				return new List<BVH<T>>();
+			if (IsLeaf)
+				return new List<BVH<T>>() { this };
 
 			Stack<(BVH<T> node, int index)> stack = new Stack<(BVH<T> node, int index)>();
 			stack.Push((this, 0));
@@ -183,14 +182,14 @@ namespace RaytracerCore.Raytracing.Acceleration
 
 			while (true)
 			{
-				var current = stack.Peek();
+				var (node, index) = stack.Peek();
 
-				if (current.node.IsLeaf)
+				if (node.IsLeaf)
 				{
-					Util.Assert(!list.Contains(current.node), "Nodes must be unique.");
+					Util.Assert(!list.Contains(node), "Nodes must be unique.");
 
 					// Yield a node
-					list.Add(current.node);
+					list.Add(node);
 					stack.Pop();
 					(BVH<T> node, int index) next;
 
@@ -200,7 +199,7 @@ namespace RaytracerCore.Raytracing.Acceleration
 						next = stack.Pop();
 						next.index++;
 
-						if (next.index < next.node.Children.Length)
+						if (next.index < 2)
 							break;
 						else if (stack.Count == 0)
 							return list;
@@ -211,7 +210,17 @@ namespace RaytracerCore.Raytracing.Acceleration
 				else
 				{
 					// Step into child
-					stack.Push((current.node.Children[current.index], 0));
+					switch (index)
+					{
+						case 0:
+							stack.Push((node.Left, 0));
+							break;
+						case 1:
+							stack.Push((node.Right, 0));
+							break;
+						default:
+							throw new IndexOutOfRangeException($"Index {index} exceeded range of 0-1 while flattening a BVH.");
+					}
 				}
 			}
 		}
@@ -223,12 +232,7 @@ namespace RaytracerCore.Raytracing.Acceleration
 				if (IsLeaf)
 					return 1;
 
-				int count = 0;
-
-				foreach (BVH<T> child in Children)
-					count += child.LeafCount;
-
-				return count;
+				return Left.LeafCount + Right.LeafCount;
 			}
 		}
 
@@ -251,11 +255,11 @@ namespace RaytracerCore.Raytracing.Acceleration
 					return false;
 				}
 
-				foreach (BVH<T> leftChild in Children)
-				{
-					if (!otherNode.Children.Contains(leftChild))
-						return false;
-				}
+				if (!(Left.Equals(otherNode.Left) || Left.Equals(otherNode.Right)))
+					return false;
+
+				if (!(Right.Equals(otherNode.Left) || Right.Equals(otherNode.Right)))
+					return false;
 
 				return true;
 			}
@@ -265,19 +269,13 @@ namespace RaytracerCore.Raytracing.Acceleration
 
 		public override int GetHashCode()
 		{
+			// Cache the hashcode to avoid recursion when indexing
 			if (_HashCode == -1)
 			{
 				if (IsLeaf)
-				{
 					_HashCode = Object.GetHashCode();
-				}
 				else
-				{
-					_HashCode = 0;
-
-					foreach (BVH<T> child in Children)
-						_HashCode ^= child.GetHashCode();
-				}
+					_HashCode = Left.GetHashCode() ^ Right.GetHashCode();
 			}
 
 			return _HashCode;
