@@ -122,37 +122,37 @@ namespace RaytracerCore.Raytracing.Acceleration
 			Vector256<double> origin = (Vector256<double>)ray.Origin;
 			Vector256<double> direction = (Vector256<double>)ray.Direction;
 
+			Vector256<double> zeroes = new Vector256<double>();
 			Vector256<double> min = (Vector256<double>)Minimum;
 			Vector256<double> max = (Vector256<double>)Maximum;
 
-			Vector256<double> dirMask = Avx.Compare(direction, new Vector256<double>(), FloatComparisonMode.OrderedLessThanNonSignaling);
+			// Replace slabs that won't be checked (0 direction axis) with infinity so that NaN doesn't propagate
+			Vector256<double> dirInfMask = Avx.And(
+				Avx.Compare(direction, zeroes, FloatComparisonMode.OrderedEqualNonSignaling),
+				Avx.And(
+					Avx.Compare(origin, min, FloatComparisonMode.OrderedGreaterThanOrEqualNonSignaling),
+					Avx.Compare(origin, min, FloatComparisonMode.OrderedLessThanOrEqualNonSignaling)));
+			min = Avx.BlendVariable(min, SIMDHelpers.BroadcastScalar4(double.NegativeInfinity), dirInfMask);
+			max = Avx.BlendVariable(max, SIMDHelpers.BroadcastScalar4(double.PositiveInfinity), dirInfMask);
 
-			Vector256<double> minMasked = Avx.BlendVariable(min, max, dirMask);
-			Vector256<double> maxMasked = Avx.BlendVariable(max, min, dirMask);
+			// Flip slabs in direction axes that are negative
+			Vector256<double> dirNegMask = Avx.Compare(direction, zeroes, FloatComparisonMode.OrderedLessThanNonSignaling);
+			Vector256<double> minMasked = Avx.BlendVariable(min, max, dirNegMask);
+			Vector256<double> maxMasked = Avx.BlendVariable(max, min, dirNegMask);
 
 			direction = Avx.Divide(Vector256.Create(1D), direction);
 			Vector256<double> near4 = Avx.Multiply(Avx.Subtract(minMasked, origin), direction);
 			Vector256<double> far4 = Avx.Multiply(Avx.Subtract(maxMasked, origin), direction);
 
-			double near;
-			double far;
+			Vector128<double> near2 = Sse2.Max(near4.GetLower(), near4.GetUpper());
+			near2 = Sse2.MaxScalar(near2, SIMDHelpers.Swap(near2));
+			Vector128<double> far2 = Sse2.Min(far4.GetLower(), far4.GetUpper());
+			far2 = Sse2.MinScalar(far2, SIMDHelpers.Swap(far2));
 
-			near = near4.ToScalar();
-			double temp = SIMDHelpers.Swap(near4.GetLower()).ToScalar();
-			near = temp > near ? temp : near;
-			temp = near4.GetUpper().ToScalar();
-			near = temp > near ? temp : near;
-
-			far = far4.ToScalar();
-			temp = SIMDHelpers.Swap(far4.GetLower()).ToScalar();
-			far = temp < far ? temp : far;
-			temp = far4.GetUpper().ToScalar();
-			far = temp < far ? temp : far;
-
-			if (near > far | !(far >= 0))
+			if (Sse2.CompareScalarOrderedGreaterThanOrEqual(near2, far2) | Sse2.CompareScalarOrderedLessThan(far2, new Vector128<double>()))
 				return (double.NaN, double.NaN);
 
-			return (near, far);
+			return (near2.ToScalar(), far2.ToScalar());
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -182,15 +182,29 @@ namespace RaytracerCore.Raytracing.Acceleration
 			min = (min - ray.Origin) / d;
 			max = (max - ray.Origin) / d;
 
+			// Fix cases of zeroed direction axes
+			if (ray.Direction.Z == 0 || ray.Direction.Y == 0 || ray.Direction.Z == 0)
+			{
+				min = new Vec4D(
+					(double.IsNaN(min.X) && Util.ValueInRange(ray.Origin.X, Minimum.X, Maximum.X)) ? double.NegativeInfinity : min.X,
+					(double.IsNaN(min.Y) && Util.ValueInRange(ray.Origin.Y, Minimum.Y, Maximum.Y)) ? double.NegativeInfinity : min.Y,
+					(double.IsNaN(min.Z) && Util.ValueInRange(ray.Origin.Z, Minimum.Z, Maximum.Z)) ? double.NegativeInfinity : min.Z,
+					min.W);
+				max = new Vec4D(
+					(double.IsNaN(max.X) && Util.ValueInRange(ray.Origin.X, Minimum.X, Maximum.X)) ? double.PositiveInfinity : max.X,
+					(double.IsNaN(max.Y) && Util.ValueInRange(ray.Origin.Y, Minimum.Y, Maximum.Y)) ? double.PositiveInfinity : max.Y,
+					(double.IsNaN(max.Z) && Util.ValueInRange(ray.Origin.Z, Minimum.Z, Maximum.Z)) ? double.PositiveInfinity : max.Z,
+					min.W);
+			}
+
 			double near = min.X;
 			double far = max.X;
-			// Can't use Math max/min functions as they will propagate NaN
-			near = min.Y > near ? min.Y : near;
-			far = max.Y < far ? max.Y : far;
-			near = min.Z > near ? min.Z : near;
-			far = max.Z < far ? max.Z : far;
+			near = Math.Max(min.Y, near);
+			near = Math.Max(min.Z, near);
+			far = Math.Min(max.Y, far);
+			far = Math.Min(max.Z, far);
 
-			if (near > far | !(far >= 0))
+			if (near >= far | !(far >= 0))
 				return (double.NaN, double.NaN);
 
 			return (near, far);
@@ -209,6 +223,22 @@ namespace RaytracerCore.Raytracing.Acceleration
 				("Minimum", Minimum),
 				("Maximum", Maximum)
 			};
+		}
+
+		public override bool Equals(object obj)
+		{
+			if (obj == this)
+				return true;
+
+			if (obj is AABB other)
+				return Minimum == other.Minimum && Maximum == other.Maximum;
+
+			return false;
+		}
+
+		public override int GetHashCode()
+		{
+			return Minimum.GetHashCode() ^ Maximum.GetHashCode();
 		}
 	}
 }
