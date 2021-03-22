@@ -56,7 +56,8 @@ namespace RaytracerCore.Inspector
 				TreeNode hitNode = Nodifier.CreateHit(ray.Hit, "Hit", Raytracer.Scene);
 				hitNode.Expand();
 
-				hitNode.Nodes["Primitive"].Expand();
+				if (hitNode.Nodes.ContainsKey("Primitive"))
+					hitNode.Nodes["Primitive"].Expand();
 
 				treeRayProperties.Nodes.Clear();
 				treeRayProperties.Nodes.Add(hitNode);
@@ -89,10 +90,10 @@ namespace RaytracerCore.Inspector
 
 				if (ray.Hit != default)
 				{
-					primitiveItem.Text = ray.Hit.Primitive.GetType().Name;
+					primitiveItem.Text = ray.Hit.Primitive.Name;
 
 					if (ray.Hit.Primitive.Parent != null)
-						parentItem.Text = ray.Hit.Primitive.Parent.GetType().Name;
+						parentItem.Text = ray.Hit.Primitive.Parent.Name;
 				}
 
 				ListViewItem.ListViewSubItem resultItem = new ListViewItem.ListViewSubItem(rayItem, ray.Type.ToString());

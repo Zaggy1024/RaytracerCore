@@ -199,50 +199,44 @@ namespace RaytracerCore
 
 		private void openSceneMenuItem_Click(object sender, EventArgs e)
 		{
-			using (OpenFileDialog dialog = new OpenFileDialog())
+			using OpenFileDialog dialog = new OpenFileDialog();
+			dialog.InitialDirectory = Application.StartupPath;
+			dialog.Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*";
+			dialog.RestoreDirectory = false;
+
+			if (dialog.ShowDialog(this) == DialogResult.OK)
 			{
-				dialog.InitialDirectory = Application.StartupPath;
-				dialog.Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*";
-				dialog.RestoreDirectory = false;
-
-				if (dialog.ShowDialog(this) == DialogResult.OK)
-				{
-					LoadScene(dialog.FileName);
-				}
+				LoadScene(dialog.FileName);
 			}
-
-			//LoadScene("..\\..\\Debug\\bounce.txt");
 		}
 
 		private void saveOutputToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-			using (SaveFileDialog dialog = new SaveFileDialog())
+			using SaveFileDialog dialog = new SaveFileDialog();
+			dialog.InitialDirectory = Application.StartupPath;
+			dialog.Filter = "Portable Network Graphics|*.png|JPEG|*.jpg|Bitmap|*.bmp";
+			dialog.RestoreDirectory = false;
+
+			if (dialog.ShowDialog(this) == DialogResult.OK)
 			{
-				dialog.InitialDirectory = Application.StartupPath;
-				dialog.Filter = "Portable Network Graphics|*.png|JPEG|*.jpg|Bitmap|*.bmp";
-				dialog.RestoreDirectory = false;
+				ImageFormat format;
 
-				if (dialog.ShowDialog(this) == DialogResult.OK)
+				switch (Path.GetExtension(dialog.FileName))
 				{
-					ImageFormat format;
-
-					switch (Path.GetExtension(dialog.FileName))
-					{
-						case ".jpg":
-						case ".jpeg":
-							format = ImageFormat.Jpeg;
-							break;
-						case ".bmp":
-							format = ImageFormat.Bmp;
-							break;
-						case ".png":
-						default:
-							format = ImageFormat.Png;
-							break;
-					}
-
-					RenderedImage.Save(dialog.FileName, format);
+					case ".jpg":
+					case ".jpeg":
+						format = ImageFormat.Jpeg;
+						break;
+					case ".bmp":
+						format = ImageFormat.Bmp;
+						break;
+					case ".png":
+					default:
+						format = ImageFormat.Png;
+						break;
 				}
+
+				RenderedImage.Save(dialog.FileName, format);
 			}
 		}
 
@@ -355,9 +349,9 @@ namespace RaytracerCore
 			if (CurrentRaytracer != null)
 			{
 				SampleSet samples = CurrentRaytracer.GetSampleSet(mouseEvent.X, mouseEvent.Y);
-				labelSample.Text = $"Color: {samples.color} " +
-					$"Total: {samples.samples + samples.misses} " +
-					$"Missed: {samples.misses} " +
+				labelSample.Text = $"Color: {samples.Color} " +
+					$"Total: {samples.Samples + samples.Misses} " +
+					$"Missed: {samples.Misses} " +
 					$"Color: {samples.GetColor(CurrentRaytracer.Scene.BackgroundRGB, CurrentRaytracer.Scene.BackgroundAlpha, CurrentRaytracer.Exposure).ToArgb():X8}";
 			}
 		}

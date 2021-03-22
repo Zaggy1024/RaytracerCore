@@ -65,38 +65,6 @@ namespace RaytracerCore.Raytracing.Primitives
 			}
 		}
 
-		public override List<(string name, object value)> GetProperties()
-		{
-			var properties = base.GetProperties();
-
-			if (HasNormals)
-			{
-				properties.Add(("Vertices", new List<(string name, object value)>
-				{
-					("Vertex 0", Vert0.Position),
-					("Normal 0", Vert0.Normal),
-					("Vertex 1", Vert1.Position),
-					("Normal 1", Vert1.Normal),
-					("Vertex 2", Vert2.Position),
-					("Normal 2", Vert2.Normal)
-				}));
-			}
-			else
-			{
-				properties.Add(("Vertices", new List<(string name, object value)>
-				{
-					("Vertex 0", Vert0.Position),
-					("Vertex 1", Vert1.Position),
-					("Vertex 2", Vert2.Position)
-				}));
-				properties.Add(("Normal", Normal));
-			}
-
-			properties.Add(("Mirrored", Mirror));
-
-			return properties;
-		}
-
 		public override void Transform(Mat4x4D forward, Mat4x4D inverse)
 		{
 			Vert0 = Vert0.Transformed(forward);
@@ -294,9 +262,48 @@ namespace RaytracerCore.Raytracing.Primitives
 			return dist;
 		}
 
+		public override List<(string name, object value)> Properties
+		{
+			get
+			{
+				var properties = base.Properties;
+
+				if (HasNormals)
+				{
+					properties.Add(("Vertices",
+						new List<(string name, object value)>
+						{
+							("Vertex 0", Vert0.Position),
+							("Normal 0", Vert0.Normal),
+							("Vertex 1", Vert1.Position),
+							("Normal 1", Vert1.Normal),
+							("Vertex 2", Vert2.Position),
+							("Normal 2", Vert2.Normal)
+						}));
+				}
+				else
+				{
+					properties.Add(("Vertices",
+						new List<(string name, object value)>
+						{
+							("Vertex 0", Vert0.Position),
+							("Vertex 1", Vert1.Position),
+							("Vertex 2", Vert2.Position)
+						}));
+					properties.Add(("Normal", Normal));
+				}
+
+				properties.Add(("Mirrored", Mirror));
+
+				return properties;
+			}
+		}
+
+		public override string Name => "Triangle";
+
 		public override string ToString()
 		{
-			return $"Triangle @ [{GetCenter()}] N {(HasNormals ? "Per Vert" : $"[{Normal}]")}";
+			return $"{Name} @ [{GetCenter()}] N {(HasNormals ? "Per Vert" : $"[{Normal}]")}";
 		}
 	}
 }

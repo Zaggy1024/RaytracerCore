@@ -15,6 +15,8 @@ namespace RaytracerCore.Raytracing.Primitives
 	{
 		public IObject Parent = null;
 
+		public int ID = -1;
+
 		private DoubleColor _Specular;
 		private DoubleColor _Refraction;
 
@@ -46,13 +48,13 @@ namespace RaytracerCore.Raytracing.Primitives
 			Hit[] hits = DoRayTrace(ray);
 			Hit hit = default;
 
-			if (hits != default(Hit[]))
+			if (hits != default)
 			{
 				for (int i = 0; i < hits.Length; i++)
 				{
 					Hit curHit = hits[i];
 
-					if (curHit == default(Hit))
+					if (curHit == default)
 						continue;
 
 					if (Invert)
@@ -68,9 +70,6 @@ namespace RaytracerCore.Raytracing.Primitives
 					}
 				}
 			}
-
-			if (hit == default(Hit))
-				return hit;
 
 			return hit;
 		}
@@ -149,21 +148,27 @@ namespace RaytracerCore.Raytracing.Primitives
 				properties.Add((name, value));
 		}
 
-		public virtual List<(string name, object value)> GetProperties()
+		public virtual List<(string name, object value)> Properties
 		{
-			var properties = new List<(string name, object value)>();
-			AddIfNonZero("Emission", Emission, properties);
-			AddIfNonZero("Diffuse", Diffuse, properties);
-			properties.Add(("Shininess", Shininess));
-
-			if (IsReflective)
+			get
 			{
-				AddIfNonZero("Specular", Specular, properties);
-				AddIfNonZero("Refraction", Refraction, properties);
-			}
+				var properties = new List<(string name, object value)>();
+				properties.Add(("Two-sided", TwoSided));
+				AddIfNonZero("Emission", Emission, properties);
+				AddIfNonZero("Diffuse", Diffuse, properties);
+				properties.Add(("Shininess", Shininess));
 
-			properties.Add(("Refractive Index", RefractiveIndex));
-			return properties;
+				if (IsReflective)
+				{
+					AddIfNonZero("Specular", Specular, properties);
+					AddIfNonZero("Refraction", Refraction, properties);
+				}
+
+				properties.Add(("Refractive Index", RefractiveIndex));
+				return properties;
+			}
 		}
+
+		public abstract string Name { get; }
 	}
 }

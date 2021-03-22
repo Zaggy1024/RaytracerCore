@@ -119,5 +119,7 @@ namespace RaytracerCore.Raytracing.Objects
 		{
 			return GetChildren(GetSide(instance));
 		}
+
+		public string Name => "Cube";
 	}
 }

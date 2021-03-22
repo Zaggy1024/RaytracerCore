@@ -13,8 +13,6 @@ namespace RaytracerCore.Raytracing.Acceleration
 	/// </summary>
 	class AABB : IBoundingVolume
 	{
-		const double Expand = 1e-12;
-
 		public static AABB CreateSized(Vec4D center, Vec4D size)
 		{
 			size /= 2;
@@ -26,92 +24,81 @@ namespace RaytracerCore.Raytracing.Acceleration
 			Vec4D center = bounded.GetCenter();
 			return new AABB(
 				center - new Vec4D(
-					bounded.GetMaxCenterDistance(new Vec4D(-1, 0, 0, 0)) + Expand,
-					bounded.GetMaxCenterDistance(new Vec4D(0, -1, 0, 0)) + Expand,
-					bounded.GetMaxCenterDistance(new Vec4D(0, 0, -1, 0)) + Expand,
+					bounded.GetMaxCenterDistance(new Vec4D(-1, 0, 0, 0)),
+					bounded.GetMaxCenterDistance(new Vec4D(0, -1, 0, 0)),
+					bounded.GetMaxCenterDistance(new Vec4D(0, 0, -1, 0)),
 					0),
 				center + new Vec4D(
-					bounded.GetMaxCenterDistance(new Vec4D(1, 0, 0, 0)) + Expand,
-					bounded.GetMaxCenterDistance(new Vec4D(0, 1, 0, 0)) + Expand,
-					bounded.GetMaxCenterDistance(new Vec4D(0, 0, 1, 0)) + Expand,
+					bounded.GetMaxCenterDistance(new Vec4D(1, 0, 0, 0)),
+					bounded.GetMaxCenterDistance(new Vec4D(0, 1, 0, 0)),
+					bounded.GetMaxCenterDistance(new Vec4D(0, 0, 1, 0)),
 					0));
 		}
 
 		public static AABB Combine(IBoundedObject a, IBoundedObject b)
 		{
-			Vec4D center = a.GetCenter();
-			Vec4D aMin = center - new Vec4D(
-					a.GetMaxCenterDistance(new Vec4D(-1, 0, 0, 0)),
-					a.GetMaxCenterDistance(new Vec4D(0, -1, 0, 0)),
-					a.GetMaxCenterDistance(new Vec4D(0, 0, -1, 0)),
-					0);
-			Vec4D aMax = center + new Vec4D(
-					a.GetMaxCenterDistance(new Vec4D(1, 0, 0, 0)),
-					a.GetMaxCenterDistance(new Vec4D(0, 1, 0, 0)),
-					a.GetMaxCenterDistance(new Vec4D(0, 0, 1, 0)),
-					0);
-
-			center = b.GetCenter();
-			Vec4D bMin = center - new Vec4D(
-					b.GetMaxCenterDistance(new Vec4D(-1, 0, 0, 0)),
-					b.GetMaxCenterDistance(new Vec4D(0, -1, 0, 0)),
-					b.GetMaxCenterDistance(new Vec4D(0, 0, -1, 0)),
-					0);
-			Vec4D bMax = center + new Vec4D(
-					b.GetMaxCenterDistance(new Vec4D(1, 0, 0, 0)),
-					b.GetMaxCenterDistance(new Vec4D(0, 1, 0, 0)),
-					b.GetMaxCenterDistance(new Vec4D(0, 0, 1, 0)),
-					0);
-
-			return new AABB(Vec4D.Min(aMin, bMin), Vec4D.Max(aMax, bMax));
+			AABB aBB = a is AABB aAsBox ? aAsBox : CreateFromBounded(a);
+			AABB bBB = b is AABB bAsBox ? bAsBox : CreateFromBounded(b);
+			return new AABB(Vec4D.Min(aBB.Minimum, bBB.Minimum), Vec4D.Max(aBB.Maximum, bBB.Maximum));
 		}
 
 		private readonly Vec4D Minimum;
 		private readonly Vec4D Maximum;
+		private readonly Vec4D Size;
+		private readonly Vec4D Center;
 
 		public AABB(Vec4D minimum, Vec4D maximum)
 		{
 			Minimum = minimum;
 			Maximum = maximum;
+			Size = Maximum - Minimum;
+			// Replace NaN with 0 for cases where infinity 
+			Center = (Minimum + (Size / 2)).WithDefault(0);
+
+#if TRACE
+			Util.Assert(!Minimum.HasNaN(), $"Attempted to create a bounding box with an invalid minimum: ({Minimum})");
+			Util.Assert(!Maximum.HasNaN(), $"Attempted to create a bounding box with an invalid maximum: ({Maximum})");
+			Util.Assert(!Size.HasNaN(), $"Creating a bounding box resulted in an invalid size: ({Size})");
+			Util.Assert(!Center.HasNaN(), $"Creating a bounding box resulted in an invalid center: ({Center})");
+#endif
 		}
 
 		public Vec4D GetCenter()
 		{
-			return (Minimum + Maximum) / 2;
+			return Center;
 		}
 
 		public double GetMaxCenterDistance(Vec4D direction)
 		{
-			Vec4D center = GetCenter();
 			double dist = 0;
 
 			if (direction == Vec4D.Zero)
 			{
-				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Minimum.Z, 1) - center).Length, dist);
-				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Maximum.Z, 1) - center).Length, dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Minimum.Z, 1) - Center).Length, dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Maximum.Z, 1) - Center).Length, dist);
 
-				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Minimum.Z, 1) - center).Length, dist);
-				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Maximum.Z, 1) - center).Length, dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Minimum.Z, 1) - Center).Length, dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Maximum.Z, 1) - Center).Length, dist);
 
-				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Minimum.Z, 1) - center).Length, dist);
-				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Maximum.Z, 1) - center).Length, dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Minimum.Z, 1) - Center).Length, dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Maximum.Z, 1) - Center).Length, dist);
 
-				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Minimum.Z, 1) - center).Length, dist);
-				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Maximum.Z, 1) - center).Length, dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Minimum.Z, 1) - Center).Length, dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Maximum.Z, 1) - Center).Length, dist);
 			}
 			else
 			{
-				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Minimum.Z, 1) - center).Dot(direction), dist);
-				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Maximum.Z, 1) - center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Minimum.Z, 1) - Center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Minimum.Y, Maximum.Z, 1) - Center).Dot(direction), dist);
 
-				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Minimum.Z, 1) - center).Dot(direction), dist);
-				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Maximum.Z, 1) - center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Minimum.Z, 1) - Center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Minimum.X, Maximum.Y, Maximum.Z, 1) - Center).Dot(direction), dist);
 
-				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Minimum.Z, 1) - center).Dot(direction), dist);
-				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Maximum.Z, 1) - center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Minimum.Z, 1) - Center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Minimum.Y, Maximum.Z, 1) - Center).Dot(direction), dist);
 
-				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Minimum.Z, 1) - center).Dot(direction), dist);
-				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Maximum.Z, 1) - center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Minimum.Z, 1) - Center).Dot(direction), dist);
+				dist = Math.Max((new Vec4D(Maximum.X, Maximum.Y, Maximum.Z, 1) - Center).Dot(direction), dist);
 			}
 
 			return dist;
@@ -149,7 +136,7 @@ namespace RaytracerCore.Raytracing.Acceleration
 			Vector128<double> far2 = Sse2.Min(far4.GetLower(), far4.GetUpper());
 			far2 = Sse2.MinScalar(far2, SIMDHelpers.Swap(far2));
 
-			if (Sse2.CompareScalarOrderedGreaterThanOrEqual(near2, far2) | Sse2.CompareScalarOrderedLessThan(far2, new Vector128<double>()))
+			if (Sse2.CompareScalarOrderedGreaterThan(near2, far2) | Sse2.CompareScalarOrderedLessThan(far2, new Vector128<double>()))
 				return (double.NaN, double.NaN);
 
 			return (near2.ToScalar(), far2.ToScalar());
@@ -212,22 +199,40 @@ namespace RaytracerCore.Raytracing.Acceleration
 
 		public double GetVolume()
 		{
-			Vec4D size = Maximum - Minimum;
-			return size.X * size.Y * size.Z;
+			return Size.X * Size.Y * Size.Z;
 		}
 
-		public List<(string name, object value)> GetProperties()
+		public double GetSurfaceArea()
 		{
-			return new List<(string name, object value)>
+			return ((Size.X * Size.Y) + (Size.Y * Size.Z) + (Size.Z * Size.X)) * 2;
+		}
+
+		public List<(string name, object value)> Properties
+		{
+			get
 			{
-				("Minimum", Minimum),
-				("Maximum", Maximum)
-			};
+				return new List<(string name, object value)>
+				{
+					("Minimum", Minimum),
+					("Maximum", Maximum)
+				};
+			}
+		}
+
+		public bool NearlyEquals(IBoundingVolume volume)
+		{
+			if (this == volume)
+				return true;
+
+			if (volume is AABB aabb)
+				return Util.NearlyEqual(Minimum, aabb.Minimum) && Util.NearlyEqual(Maximum, aabb.Maximum);
+
+			return false;
 		}
 
 		public override bool Equals(object obj)
 		{
-			if (obj == this)
+			if (this == obj)
 				return true;
 
 			if (obj is AABB other)

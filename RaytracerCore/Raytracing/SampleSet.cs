@@ -1,39 +1,44 @@
-﻿using System;
-using System.Drawing;
-
-namespace RaytracerCore.Raytracing
+﻿namespace RaytracerCore.Raytracing
 {
 	/// <summary>
 	/// Stores information about the samples performed in a pixel of a raytracer.
 	/// </summary>
-	public readonly struct SampleSet
+	public class SampleSet
 	{
-		public readonly DoubleColor color;
-		public readonly uint samples;
-		public readonly uint misses;
+		public DoubleColor Color { get; private set; }
+		public uint Samples { get; private set; }
+		public uint Misses { get; private set; }
 
 		public SampleSet(DoubleColor color, uint samples, uint misses)
 		{
-			this.color = color;
-			this.samples = samples;
-			this.misses = misses;
+			Color = color;
+			Samples = samples;
+			Misses = misses;
+		}
+
+		public SampleSet()
+		{
+			Color = DoubleColor.Black;
+			Samples = 0;
+			Misses = 0;
 		}
 
 		/// <summary>
 		/// Adds a hit sample to the pixel.
 		/// </summary>
 		/// <param name="sample">The color to be added.</param>
-		public SampleSet AddSample(DoubleColor sample)
+		public void AddSample(DoubleColor sample)
 		{
-			return new SampleSet(color + sample, samples + 1, misses);
+			Color += sample;
+			Samples++;
 		}
 
 		/// <summary>
 		/// Adds a missed sample to the pixel.
 		/// </summary>
-		public SampleSet AddMiss()
+		public void AddMiss()
 		{
-			return new SampleSet(color, samples, misses + 1);
+			Misses++;
 		}
 
 		// Convert a double color to a 32-bit ARGB color code.
@@ -53,7 +58,7 @@ namespace RaytracerCore.Raytracing
 		/// <param name="exposure">The exposure used to brighten the image.</param>
 		public int GetOutput(DoubleColor back, double backA, double exposure)
 		{
-			if (samples == 0)
+			if (Samples == 0)
 				return GetColorCode(back.R * exposure, back.G * exposure, back.B * exposure, backA);
 
 			/* Attempt at making transparent misses work correctly,
@@ -78,15 +83,15 @@ namespace RaytracerCore.Raytracing
 			b += (back.B - b) * backAmt;
 			a += (backA - a) * backAlphaAmt;*/
 
-			double total = samples + misses;
-			double colorMult = exposure / samples;
+			double total = Samples + Misses;
+			double colorMult = exposure / Samples;
 
-			double r = color.R * colorMult;
-			double g = color.G * colorMult;
-			double b = color.B * colorMult;
+			double r = Color.R * colorMult;
+			double g = Color.G * colorMult;
+			double b = Color.B * colorMult;
 			double a = 1;
 
-			double backAlphaAmt = misses / total;
+			double backAlphaAmt = Misses / total;
 			double backAmt = backAlphaAmt * backA;
 
 			r += (back.R - r) * backAmt;
@@ -101,14 +106,14 @@ namespace RaytracerCore.Raytracing
 		}
 
 		/// <summary>
-		/// Calculate the final color output for a pixel and convert to a .NET <see cref="Color"/>.
+		/// Calculate the final color output for a pixel and convert to a .NET <see cref="System.Drawing.Color"/>.
 		/// </summary>
 		/// <param name="back">The background color.</param>
 		/// <param name="backA">The background alpha value.</param>
 		/// <param name="exposure">The exposure used to brighten the image.</param>
-		public Color GetColor(DoubleColor back, double backA, double exposure)
+		public System.Drawing.Color GetColor(DoubleColor back, double backA, double exposure)
 		{
-			return Color.FromArgb(GetOutput(back, backA, exposure));
+			return System.Drawing.Color.FromArgb(GetOutput(back, backA, exposure));
 		}
 	}
 }

@@ -1,11 +1,13 @@
-﻿namespace RaytracerCore.Vectors
+﻿using System;
+
+namespace RaytracerCore.Vectors
 {
 	/// <summary>
 	/// <para>Represents a ray to cast through a scene.</para>
 	/// <para>This implementation includes no maximum distance for a ray cast, but one may be desired
 	/// to prevent floating point inaccuracies affecting the output.</para>
 	/// </summary>
-	public class Ray
+	public struct Ray
 	{
 		public static readonly Ray Zero = new Ray(Vec4D.Zero, Vec4D.Zero);
 
@@ -68,6 +70,19 @@
 		public Ray PointingTowards(Vec4D position)
 		{
 			return FromTo(Origin, position);
+		}
+
+		public double GetDistanceTo(Vec4D point)
+		{
+			Vec4D toPoint = point - Origin;
+			/*// More accurate?
+			double distance = toPoint.Length;
+			Vec4D toPointN = toPoint / distance;
+			double cos = Direction.Dot(toPointN);
+			double sin = Math.Sqrt(1 - cos * cos);
+			return distance * sin;*/
+
+			return (toPoint - (Direction * toPoint.Dot(Direction))).Length;
 		}
 
 		public static bool operator ==(Ray left, Ray right)

@@ -1,6 +1,6 @@
 ﻿namespace RaytracerCore.Raytracing.Acceleration
 {
-	public class BoundingIntersection<T> where T : class, IBoundedObject
+	public class BoundingIntersection<T> where T : IBoundedObject
 	{
 		public BVH<T> Node;
 		public double Near;

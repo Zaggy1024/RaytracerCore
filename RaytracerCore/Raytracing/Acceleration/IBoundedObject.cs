@@ -4,13 +4,8 @@ using RaytracerCore.Vectors;
 
 namespace RaytracerCore.Raytracing.Acceleration
 {
-	public interface IBoundedObject
+	public interface IBoundedObject : ICenter
 	{
-		/// <summary>
-		/// Get the center of the bounds of this object.
-		/// </summary>
-		public Vec4D GetCenter();
-
 		/// <summary>
 		/// Gets the maximum distance from the center to any point on the object, using the provided function to calculate the distance to each point.
 		/// 

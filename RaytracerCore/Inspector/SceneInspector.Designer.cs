@@ -269,6 +269,7 @@ namespace RaytracerCore.Inspector
 			this.Controls.Add(this.layoutMain);
 			this.Name = "SceneInspector";
 			this.Text = "Scene Inspector";
+			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SceneInspector_FormClosed);
 			this.tabsViews.ResumeLayout(false);
 			this.tabScene.ResumeLayout(false);
 			this.layoutScene.ResumeLayout(false);

@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 using RaytracerCore.Vectors;
 
@@ -141,9 +141,22 @@ namespace RaytracerCore.Raytracing.Primitives
 			return dist;
 		}
 
+		public override List<(string name, object value)> Properties
+		{
+			get
+			{
+				var properties = base.Properties;
+				properties.Add(("Minimum", Minimum));
+				properties.Add(("Maximum", Maximum));
+				return properties;
+			}
+		}
+
+		public override string Name => "Cube";
+
 		public override string ToString()
 		{
-			return $"Cube @ [{GetCenter()}] S {Maximum - Minimum}";
+			return $"{Name} @ [{GetCenter()}] S {Maximum - Minimum}";
 		}
 	}
 }

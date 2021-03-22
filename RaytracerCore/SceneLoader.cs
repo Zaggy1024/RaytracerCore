@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
@@ -44,16 +45,6 @@ namespace RaytracerCore
 				throw new IndexOutOfRangeException("A parameter was missing from a command.");
 
 			return paramEnum.Current;
-		}
-
-		private static float ParseFlt(string str)
-		{
-			return float.Parse(str, System.Globalization.CultureInfo.InvariantCulture);
-		}
-
-		private static float NextFlt()
-		{
-			return ParseFlt(Next());
 		}
 
 		private static double ParseDbl(string str)
@@ -309,7 +300,7 @@ namespace RaytracerCore
 									prims.Add(new Sphere(NextVec(1), NextDbl()));
 									break;
 								case "plane":
-									prims.Add(new Plane(Ray.Directional(NextVec(1), NextVec(0)), NextVec(0)));
+									prims.Add(new Plane(NextDbl(), NextVec(0)));
 									break;
 								case "vertex":
 									vertices.Add(NextVec(1));
@@ -374,7 +365,7 @@ namespace RaytracerCore
 								case "maxvertnorms":
 									break;
 								default:
-									Console.WriteLine("Unknown command: " + cmd);
+									Trace.WriteLine("Unknown command: " + cmd);
 									break;
 							}
 

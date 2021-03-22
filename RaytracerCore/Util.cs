@@ -5,6 +5,7 @@ using System.Linq;
 
 using RaytracerCore.Raytracing;
 using RaytracerCore.Vectors;
+using System.Threading.Tasks;
 
 namespace RaytracerCore
 {
@@ -48,13 +49,27 @@ namespace RaytracerCore
 			return delta <= minNormal || delta / Math.Max(a, b) < NearEnough;
 		}
 
-		/// <summary>Compare two doubles for near equality, using the absolute values to determine error margin.</summary>
+		/// <summary>
+		/// Compare two doubles for near equality, using the absolute values to determine error margin.
+		/// </summary>
 		/// <param name="a">The first value to compare.</param>
 		/// <param name="b">The second value to compare.</param>
 		/// <returns>Whether the difference is less than the expected error margin.</returns>
 		public static bool NearlyEqual(double a, double b)
 		{
 			return NearlyEqual(a, b, a - b);
+		}
+
+		/// <summary>
+		/// Compare two vectors for near equality, using <see cref="NearlyEqual(double, double)"/> for comparison of individual coordinates.
+		/// </summary>
+		/// <param name="a">The first vector to compare.</param>
+		/// <param name="b">The second vector to compare.</param>
+		/// <returns>Whether the difference between all coordinates in the vector is within the expected error margin.</returns>
+		public static bool NearlyEqual(Vec4D a, Vec4D b)
+		{
+			Vec4D delta = a - b;
+			return NearlyEqual(a.X, b.X, delta.X) && NearlyEqual(a.Y, b.Y, delta.Y) && NearlyEqual(a.Z, b.Z, delta.Z) && NearlyEqual(a.W, b.W, delta.W);
 		}
 
 		[Conditional("TRACE")]
@@ -65,24 +80,28 @@ namespace RaytracerCore
 		}
 
 		[Conditional("TRACE")]
+		public static void AssertEqual<T>(T a, T b, string error)
+		{
+			Assert(a.Equals(b), string.Format(error, a, b));
+		}
+
+		[Conditional("TRACE")]
 		public static void AssertNearlyEqual(double a, double b, double allowed, string error)
 		{
-			if (Math.Abs(a - b) > allowed)
-				throw new Exception($"{error}: {a} ~= {b} ({Math.Abs(a - b)})");
+			Assert(Math.Abs(a - b) <= allowed, $"{error} {a} ~= {b} ({Math.Abs(a - b)})");
 		}
 
 		[Conditional("TRACE")]
 		public static void AssertNearlyEqual(double a, double b, string error)
 		{
-			if (!NearlyEqual(a, b))
-				throw new Exception($"{error}: {a} ~= {b} ({Math.Abs(a - b)})");
+			Assert(NearlyEqual(a, b), $"{error} {a} ~= {b} ({Math.Abs(a - b)})");
 		}
 
 		[Conditional("TRACE")]
 		public static void AssertNearlyEqual(Vec4D a, Vec4D b, double allowed, string error)
 		{
-			if (Math.Abs((a - b).SquaredLength) > allowed * allowed)
-				throw new Exception($"{error}: {a} ~= {b} ({Math.Abs((a - b).Length)} > {allowed})");
+			Assert(Math.Abs((a - b).SquaredLength) > allowed * allowed,
+				$"{error} {a} ~= {b} ({Math.Abs((a - b).Length)} > {allowed})");
 		}
 
 		/// <summary>Determine whether a value is within a minimum and maximum value range (both inclusive).</summary>
@@ -109,6 +128,18 @@ namespace RaytracerCore
 			if (value > maximum)
 				return maximum;
 			return value;
+		}
+
+		/// <summary>
+		/// Linearly interpolates between <paramref name="minimum"/> and <paramref name="maximum"/> by the <paramref name="value"/> normally in range 0.0-1.0.
+		/// </summary>
+		/// <param name="value">The value, normally ranging from 0.0 to 1.0, to interpolate by.</param>
+		/// <param name="minimum">The final value corresponding <paramref name="value"/>=0.0.</param>
+		/// <param name="maximum">The final value corresponding <paramref name="value"/>=1.0.</param>
+		/// <returns>The interpolated value, not constrained be between the <paramref name="minimum"/> and <paramref name="maximum"/>.</returns>
+		public static double Lerp(double value, double minimum, double maximum)
+		{
+			return minimum + (maximum - minimum) * value;
 		}
 
 		/// <summary>
@@ -145,6 +176,107 @@ namespace RaytracerCore
 			if (ray.Direction.Dot(b.Normal) > 0)
 				return a.Inside != b.Inside;
 			return a.Inside == b.Inside;
+		}
+
+		private static void MergeSortSplit<T>(T[] source, Comparer<T> comparer, int start, int end, T[] destination)
+		{
+			if (end - start <= 1)
+				return;
+
+			int mid = (start + end) / 2;
+			MergeSortSplit(destination, comparer, start, mid, source);
+			MergeSortSplit(destination, comparer, mid, end, source);
+			MergeSortCopy(source, comparer, start, mid, end, destination);
+		}
+
+		private static void MergeSortCopy<T>(T[] source, Comparer<T> comparer, int start, int mid, int end, T[] destination)
+		{
+			int left = start, right = mid;
+
+			for (int dest = start; dest < end; dest++)
+			{
+				if (left < mid && (right >= end || comparer.Compare(source[left], source[right]) <= 0))
+				{
+					destination[dest] = source[left];
+					left++;
+				}
+				else
+				{
+					destination[dest] = source[right];
+					right++;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Performs a merge sort on the array.
+		/// This will maintain a stable order among the elements with equal comparisons.
+		/// 
+		/// <para>Best used to sort arrays of data that will usually be significantly out of order.</para>
+		/// </summary>
+		/// <typeparam name="T">The type of the array element.</typeparam>
+		/// <param name="array">The array to sort in place.</param>
+		/// <param name="comparer">The comparer to determine ordering.</param>
+		public static void MergeSort<T>(T[] array, Comparer<T> comparer)
+		{
+			T[] copy = new T[array.Length];
+			Array.Copy(array, copy, array.Length);
+			MergeSortSplit(copy, comparer, 0, array.Length, array);
+		}
+
+		/// <summary>
+		/// Performs a merge sort on the array using the default comparer for <typeparamref name="T"/>.
+		/// This will maintain a stable order among the elements with equal comparisons.
+		/// 
+		/// <para>Best used to sort arrays of data that will usually be significantly out of order.</para>
+		/// </summary>
+		/// <typeparam name="T">The type of the array element.</typeparam>
+		/// <param name="array">The array to sort in place.</param>
+		public static void MergeSort<T>(T[] array)
+		{
+			MergeSort(array, Comparer<T>.Default);
+		}
+
+		/// <summary>
+		/// Performs an insertion sort on the array.
+		/// This will maintain a stable order among the elements with equal comparisons.
+		/// 
+		/// <para>Best used to sort short arrays, or arrays likely to be nearly ordered.</para>
+		/// </summary>
+		/// <typeparam name="T">The type of the array element.</typeparam>
+		/// <param name="array">The array to sort in place.</param>
+		/// <param name="comparer">The comparer to determine ordering.</param>
+		public static void InsertSort<T>(IList<T> array, Comparer<T> comparer)
+		{
+			int size = array.Count;
+
+			for (int i = 1; i < size; i++)
+			{
+				T a = array[i];
+				T b;
+				int j = i - 1;
+
+				while (j >= 0 && comparer.Compare(a, b = array[j]) < 0)
+				{
+					array[j + 1] = b;
+					j--;
+				}
+
+				array[j + 1] = a;
+			}
+		}
+
+		/// <summary>
+		/// Performs an insertion sort on the array using the default comparer for <typeparamref name="T"/>.
+		/// This will maintain a stable order among the elements with equal comparisons.
+		/// 
+		/// <para>Best used to sort short arrays, or arrays likely to be nearly ordered.</para>
+		/// </summary>
+		/// <typeparam name="T">The type of the array element.</typeparam>
+		/// <param name="array">The array to sort in place.</param>
+		public static void InsertSort<T>(IList<T> array)
+		{
+			InsertSort(array, Comparer<T>.Default);
 		}
 	}
 }

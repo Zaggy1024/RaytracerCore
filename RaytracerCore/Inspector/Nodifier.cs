@@ -75,26 +75,20 @@ namespace RaytracerCore.Inspector
 				node.Nodes.Add(Create(property.value, property.name));
 		}
 
-		public static TreeNode CreatePrimitive(Primitive primitive, string name, int id)
+		public static TreeNode CreatePrimitive(Primitive primitive, string name)
 		{
 			if (primitive == null)
 				return Create($"{name}: None", name);
 
 			TreeNode node = Create($"{name} ({primitive.GetType().Name}):", name);
 
-			if (id != -1)
-				node.Nodes.Add(CreateText(id, "ID"));
+			node.Nodes.Add(CreateText(primitive.ID, "ID"));
 
 			node.Tag = primitive;
 
-			AddProperties(node, primitive.GetProperties());
+			AddProperties(node, primitive.Properties);
 
 			return node;
-		}
-
-		public static TreeNode CreatePrimitive(Primitive primitive, string name)
-		{
-			return CreatePrimitive(primitive, name, -1);
 		}
 
 		public static TreeNode CreateHit(Hit hit, string name, Scene scene)
@@ -126,7 +120,7 @@ namespace RaytracerCore.Inspector
 				node.Nodes.Add(CreateText(hit.Distance, "Distance"));
 
 				if (scene != null)
-					node.Nodes.Add(CreatePrimitive(hit.Primitive, "Primitive", scene.GetPrimitiveID(hit.Primitive)));
+					node.Nodes.Add(CreatePrimitive(hit.Primitive, "Primitive"));
 
 				node.Nodes.Add(CreateVector(hit.Normal, "Normal"));
 				node.Nodes.Add(CreateText(hit.Inside, "Inside"));
@@ -142,14 +136,14 @@ namespace RaytracerCore.Inspector
 		public static TreeNode CreateVolume(IBoundingVolume volume, string name)
 		{
 			TreeNode node = Create(name);
-			AddProperties(node, volume.GetProperties());
+			AddProperties(node, volume.Properties);
 			node.Tag = volume;
 			return node;
 		}
 
 		public static TreeNode CreateBVHTree(BVH<Primitive> bvhNode, string name, Scene scene)
 		{
-			string subtitle = bvhNode.IsLeaf ? $"Leaf {scene.GetBVHLeafID(bvhNode)}" : "Branch";
+			string subtitle = bvhNode.IsLeaf ? $"Leaf {bvhNode.LeafID}" : "Branch";
 
 			TreeNode node;
 
@@ -184,13 +178,14 @@ namespace RaytracerCore.Inspector
 			node.Tag = bvhNode;
 
 			if (bvhNode.IsLeaf)
-				node.Nodes.Add(CreateText(scene.GetBVHLeafID(bvhNode), "ID"));
+				node.Nodes.Add(CreateText(bvhNode.LeafID, "ID"));
 
 			// Add contained primitive to the node if we're on a leaf
 			if (bvhNode.IsLeaf)
-				node.Nodes.Add(CreatePrimitive(bvhNode.Object, "Object", scene == null ? -1 : scene.GetPrimitiveID(bvhNode.Object)));
+				node.Nodes.Add(CreatePrimitive(bvhNode.Object, "Object"));
 
 			node.Nodes.Add(CreateVolume(bvhNode.Volume, "Volume"));
+			node.Nodes.Add(CreateText(bvhNode.SkipVolume, "Skip volume (parent is same)"));
 
 			return node;
 		}

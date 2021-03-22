@@ -259,6 +259,15 @@ namespace RaytracerCore.Vectors
 			}
 		}
 
+		public double this[Axis axis]
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+			get
+			{
+				return this[(int)axis];
+			}
+		}
+
 		/// <summary>
 		/// Returns the squared length of the vector, including W. This should not be used on non-directional vectors.
 		/// </summary>
@@ -355,6 +364,22 @@ namespace RaytracerCore.Vectors
 					X * right.Y - Y * right.X,
 					0);
 		}
+		public Vec4D WithDefault(double value)
+		{
+			bool xNaN = double.IsNaN(X);
+			bool yNaN = double.IsNaN(Y);
+			bool zNaN = double.IsNaN(Z);
+			bool wNaN = double.IsNaN(W);
+			if (xNaN | yNaN | zNaN | wNaN)
+			{
+				return new Vec4D(xNaN ? value : X,
+					yNaN ? value : Y,
+					zNaN ? value : Z,
+					wNaN ? value : W);
+			}
+
+			return this;
+		}
 
 		/// <summary>
 		/// Create a vector with the lowest of each component of the two input vectors.
@@ -383,13 +408,28 @@ namespace RaytracerCore.Vectors
 		{
 			get
 			{
-				return !double.IsNaN(X) &&
-						!double.IsNaN(Y) &&
-						!double.IsNaN(Z) &&
-						!double.IsInfinity(X) &&
-						!double.IsInfinity(Y) &&
-						!double.IsInfinity(Z);
+				return !HasNaN() && !HasInfinity();
 			}
+		}
+
+		/// <summary>
+		/// Whether this vector has any NaN components.
+		/// </summary>
+		public bool HasNaN()
+		{
+			return double.IsNaN(X) ||
+					double.IsNaN(Y) ||
+					double.IsNaN(Z);
+		}
+
+		/// <summary>
+		/// Whether this vector has any infinity components.
+		/// </summary>
+		public bool HasInfinity()
+		{
+			return !double.IsInfinity(X) ||
+					!double.IsInfinity(Y) ||
+					!double.IsInfinity(Z);
 		}
 
 		/// <summary>

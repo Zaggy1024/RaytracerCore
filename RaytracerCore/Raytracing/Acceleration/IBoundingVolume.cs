@@ -15,8 +15,12 @@ namespace RaytracerCore.Raytracing.Acceleration
 		/// <returns>A tuple of the near and far hit distances, or NaN if missed.</returns>
 		public (double near, double far) Intersect(Ray ray);
 
-		public List<(string name, object value)> GetProperties();
+		public List<(string name, object value)> Properties { get; }
 
 		public double GetVolume();
+
+		public double GetSurfaceArea();
+
+		public bool NearlyEquals(IBoundingVolume volume);
 	}
 }

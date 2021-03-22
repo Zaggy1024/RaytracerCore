@@ -13,5 +13,7 @@ namespace RaytracerCore.Raytracing.Objects
 		Primitive[] GetChildren(string instance);
 
 		//void Transform(Matrix transform, Matrix inverseTransform);
+
+		string Name { get; }
 	}
 }

@@ -1,8 +1,8 @@
 ﻿#define BVH
 
+using System;
 using System.Drawing;
 using System.Collections.Generic;
-using System.Linq;
 
 using RaytracerCore.Vectors;
 using RaytracerCore.Raytracing.Cameras;
@@ -26,9 +26,9 @@ namespace RaytracerCore.Raytracing
 		public int CurrentCamera = 0;
 		public List<Camera> Cameras = new List<Camera>();
 
-		private List<Primitive> _Primitives = new List<Primitive>();
+		private readonly List<Primitive> _Primitives = new List<Primitive>();
+		private int PrimitiveID = 0;
 		private BVH<Primitive> _Accelerator = null;
-		private List<BVH<Primitive>> AcceleratorFlat = null;
 
 		public int Recursion = 3;
 
@@ -40,7 +40,6 @@ namespace RaytracerCore.Raytracing
 			if (_Accelerator == null)
 			{
 				_Accelerator = BVH.Construct(_Primitives);
-				AcceleratorFlat = _Accelerator.Flatten().ToList();
 			}
 #endif
 		}
@@ -48,23 +47,13 @@ namespace RaytracerCore.Raytracing
 		public void ResetAccelerator()
 		{
 			_Accelerator = null;
-			AcceleratorFlat = null;
 		}
 
 		public void AddPrimitive(Primitive primitive)
 		{
 			_Primitives.Add(primitive);
+			primitive.ID = PrimitiveID++;
 			ResetAccelerator();
-		}
-
-		public int GetPrimitiveID(Primitive primitive)
-		{
-			return _Primitives.IndexOf(primitive);
-		}
-
-		public int GetBVHLeafID(BVH<Primitive> node)
-		{
-			return AcceleratorFlat.IndexOf(node);
 		}
 
 		public static Hit RayTracePrimitives(Ray ray, Hit skipHit, IEnumerable<Primitive> primitives, BVH<Primitive> Accelerator)
@@ -75,7 +64,7 @@ namespace RaytracerCore.Raytracing
 #if BVH
 			if (Accelerator != null)
 			{
-				List<BoundingIntersection<Primitive>> intersections = Accelerator.IntersectAll(ray);
+				IEnumerable<BoundingIntersection<Primitive>> intersections = Accelerator.IntersectAll(ray);
 				BoundingIntersection<Primitive> previous = null;
 
 				foreach (BoundingIntersection<Primitive> current in intersections)
@@ -115,7 +104,9 @@ namespace RaytracerCore.Raytracing
 
 		public Hit RayTrace(Ray ray, Hit skipHit)
 		{
+#if BVH
 			Util.Assert(_Accelerator != null, "Accelerator must be initialized before rendering.");
+#endif
 
 			return RayTracePrimitives(ray, skipHit, _Primitives, _Accelerator);
 		}
@@ -152,6 +143,8 @@ namespace RaytracerCore.Raytracing
 				BackgroundAlpha = value.A / 255.0;
 			}
 		}
+
+		public bool HasAccelerator => _Accelerator != null;
 
 		public BVH<Primitive> Accelerator => _Accelerator;
 

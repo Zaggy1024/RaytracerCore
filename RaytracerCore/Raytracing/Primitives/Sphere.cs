@@ -14,10 +14,10 @@ namespace RaytracerCore.Raytracing.Primitives
 		protected double RadiusValue;
 		protected double RadiusSqr;
 
-		bool Transformed;
-		Mat4x4D MatrixToObject = Mat4x4D.Identity4x4;
-		Mat4x4D MatrixToWorld = Mat4x4D.Identity4x4;
-		Mat4x4D MatrixToNormal = Mat4x4D.Identity4x4;
+		protected bool Transformed;
+		protected Mat4x4D MatrixToObject = Mat4x4D.Identity4x4;
+		protected Mat4x4D MatrixToWorld = Mat4x4D.Identity4x4;
+		protected Mat4x4D MatrixToNormal = Mat4x4D.Identity4x4;
 		protected Vec4D CenterObj;
 
 		public Sphere(Vec4D center, double radius)
@@ -30,7 +30,7 @@ namespace RaytracerCore.Raytracing.Primitives
 		{
 			if (forward != Mat4x4D.Identity4x4)
 				Transformed = true;
-			MatrixToObject = MatrixToObject * forward;
+			MatrixToObject *= forward;
 			MatrixToWorld = inverse * MatrixToWorld;
 			MatrixToNormal = MatrixToWorld.Transpose3x3();
 			CenterObj = MatrixToWorld * Center;
@@ -44,17 +44,6 @@ namespace RaytracerCore.Raytracing.Primitives
 				RadiusValue = value;
 				RadiusSqr = value * value;
 			}
-		}
-
-		public override List<(string name, object value)> GetProperties()
-		{
-			var properties = base.GetProperties();
-
-			properties.Add(("Center", Center));
-			properties.Add(("Radius", Radius));
-			properties.Add(("Matrix", MatrixToObject));
-
-			return properties;
 		}
 
 		/// <summary>Perform a ray trace using AVX2 and FMA instructions. This is architecture-specific.</summary>
@@ -230,15 +219,43 @@ namespace RaytracerCore.Raytracing.Primitives
 
 		public override double GetMaxCenterDistance(Vec4D direction)
 		{
-			//if (Transformed)
-				//throw new NotImplementedException();
+			if (Transformed)
+			{
+				// Ellipsoid bounding boxes according to https://tavianator.com/2014/ellipsoid_bounding_boxes.html
+				// solved for any directions with the matrix transformed to put the object space x axis along the direction vector.
+				double sin = Math.Sqrt(1 - direction.X * direction.X);
+				Vec4D vec = new Vec4D(direction.X, direction.Y * sin, direction.Z * sin, 0);
+				return (MatrixToObject.Transpose3x3() * vec).Length * RadiusValue;
+			}
 
 			return Radius;
 		}
 
+		public override List<(string name, object value)> Properties
+		{
+			get
+			{
+				var properties = base.Properties;
+
+				properties.Add(("Center", Center));
+				properties.Add(("Radius", Radius));
+				properties.Add(("Transformed", Transformed));
+
+				if (Transformed)
+				{
+					properties.Add(("Matrix", MatrixToObject));
+					properties.Add(("Transformed center", GetCenter()));
+				}
+
+				return properties;
+			}
+		}
+
+		public override string Name => "Sphere";
+
 		public override string ToString()
 		{
-			return $"Sphere {(Transformed ? "T " : "")}@ [{Center}] R {Radius}";
+			return $"{Name} {(Transformed ? "T " : "")}@ [{Center}] R {Radius}";
 		}
 	}
 }

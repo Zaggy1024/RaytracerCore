@@ -26,12 +26,10 @@ namespace RaytracerCore.Raytracing
 
 		public class PrimitiveIntersector : IIntersector
 		{
-			Scene Scene;
-			Primitive Primitive;
+			private readonly Primitive Primitive;
 
-			public PrimitiveIntersector(Scene scene, Primitive primitive)
+			public PrimitiveIntersector(Primitive primitive)
 			{
-				Scene = scene;
 				Primitive = primitive;
 			}
 
@@ -45,35 +43,33 @@ namespace RaytracerCore.Raytracing
 				return double.NaN;
 			}
 
-			public int ID => Scene.GetPrimitiveID(Primitive);
+			public int ID => Math.Max(Primitive.ID, 0);
 		}
 
 		public class BVHIntersector : IIntersector
 		{
-			Scene Scene;
-			BVH<Primitive> Node;
+			private readonly BVH<Primitive> Node;
 
-			public BVHIntersector(Scene scene, BVH<Primitive> node)
+			public BVHIntersector(BVH<Primitive> node)
 			{
-				Scene = scene;
 				Node = node;
 			}
 
 			public double Intersect(Ray ray)
 			{
-				var intersect = Node.Volume.Intersect(ray);
+				var (near, far) = Node.Volume.Intersect(ray);
 
-				if (intersect.near >= 0)
-					return intersect.near;
+				if (near >= 0)
+					return near;
 
-				return intersect.far;
+				return far;
 			}
 
 			public int ID
 			{
 				get
 				{
-					int id = Scene.GetBVHLeafID(Node);
+					int id = Node.LeafID;
 					if (id < 0)
 						return Node.GetHashCode();
 					return id;
@@ -144,17 +140,17 @@ namespace RaytracerCore.Raytracing
 
 			if (item is Primitive primitive)
 			{
-				NextIntersectors = new PrimitiveIntersector[] { new PrimitiveIntersector(Scene, primitive) };
+				NextIntersectors = new PrimitiveIntersector[] { new PrimitiveIntersector(primitive) };
 				valid = true;
 			}
 			else if (item is IObject parent)
 			{
-				NextIntersectors = Scene.Primitives.Where(p => p.Parent == parent).Select(p => new PrimitiveIntersector(Scene, p)).ToArray();
+				NextIntersectors = Scene.Primitives.Where(p => p.Parent == parent).Select(p => new PrimitiveIntersector(p)).ToArray();
 				valid = true;
 			}
 			else if (item is BVH<Primitive> node)
 			{
-				NextIntersectors = new BVHIntersector[] { new BVHIntersector(Scene, node) };
+				NextIntersectors = new BVHIntersector[] { new BVHIntersector(node) };
 				valid = true;
 			}
 
@@ -198,14 +194,17 @@ namespace RaytracerCore.Raytracing
 					if (hit == default)
 						return Color.Transparent;
 
-					return GetColorFromID(Scene.GetPrimitiveID(hit.Primitive));
+					return GetColorFromID(Math.Max(hit.Primitive.ID, 0));
 				case DisplayMode.BoundingVolumes:
+					if (!Scene.HasAccelerator)
+						return Color.Transparent;
+
 					BoundingIntersection<Primitive> collision = Scene.Accelerator.IntersectAll(ray).FirstOrDefault();
 
 					if (collision == null)
 						return Color.Transparent;
 
-					int id = Scene.GetBVHLeafID(collision.Node);
+					int id = collision.Node.LeafID;
 
 					// Handle branches as well using their hashcodes, since they won't be included in the scene list
 					if (id < 0)

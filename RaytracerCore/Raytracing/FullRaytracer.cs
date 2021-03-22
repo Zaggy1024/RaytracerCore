@@ -106,13 +106,19 @@ namespace RaytracerCore.Raytracing
 		/// <param name="y">The y pixel position.</param>
 		public SampleSet GetSampleSet(int x, int y)
 		{
-			if (SampleSets == null)
-				return default;
+			SampleSet result = default;
 
-			x = Util.Clamp(x, 0, Scene.Width);
-			y = Util.Clamp(y, 0, Scene.Height);
+			if (SampleSets != null)
+			{
+				x = Util.Clamp(x, 0, Scene.Width);
+				y = Util.Clamp(y, 0, Scene.Height);
+				result = SampleSets[x, y];
+			}
 
-			return SampleSets[x, y];
+			if (result == default)
+				return new SampleSet();
+
+			return result;
 		}
 
 		/// <summary>
@@ -131,7 +137,7 @@ namespace RaytracerCore.Raytracing
 		/// <param name="color">The color of the sample.</param>
 		public void AddSample(PixelPos pos, DoubleColor color)
 		{
-			SampleSets[pos.X, pos.Y] = SampleSets[pos.X, pos.Y].AddSample(color);
+			SampleSets[pos.X, pos.Y].AddSample(color);
 		}
 
 		/// <summary>
@@ -140,7 +146,7 @@ namespace RaytracerCore.Raytracing
 		/// <param name="pos">The pixel position to add a miss to.</param>
 		public void AddMiss(PixelPos pos)
 		{
-			SampleSets[pos.X, pos.Y] = SampleSets[pos.X, pos.Y].AddMiss();
+			SampleSets[pos.X, pos.Y].AddMiss();
 		}
 
 		/// <summary>
@@ -199,8 +205,18 @@ namespace RaytracerCore.Raytracing
 
 			int w = Scene.Width;
 			int h = Scene.Height;
-			SampleSets = new SampleSet[w, h];
 
+			// Initialize image storage
+			SampleSets = new SampleSet[w, h];
+			for (int x = 0; x < w; x++)
+			{
+				for (int y = 0; y < h; y++)
+				{
+					SampleSets[x, y] = new SampleSet();
+				}
+			}
+
+			// Prepare camera
 			Scene.Camera.InitRender(w, h);
 
 			Random rand = new Random();
