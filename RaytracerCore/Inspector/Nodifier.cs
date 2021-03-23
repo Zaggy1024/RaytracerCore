@@ -126,7 +126,7 @@ namespace RaytracerCore.Inspector
 				node.Nodes.Add(CreateText(hit.Inside, "Inside"));
 
 #if TRACE
-				node.Nodes.Add(Create(hit.DebugText, "Debug"));
+				node.Nodes.Add(CreateText(hit.DebugText, "Debug"));
 #endif
 			}
 
