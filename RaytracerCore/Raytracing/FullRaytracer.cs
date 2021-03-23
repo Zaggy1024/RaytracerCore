@@ -184,9 +184,8 @@ namespace RaytracerCore.Raytracing
 		{
 			if (DebugChanged)
 			{
-				UpdateDebugCallback?.Invoke(this, DebugRaycaster.RenderDebug());
-
 				DebugChanged = false;
+				UpdateDebugCallback?.Invoke(this, DebugRaycaster.RenderDebug());
 			}
 		}
 

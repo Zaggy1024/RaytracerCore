@@ -177,7 +177,7 @@ namespace RaytracerCore.Raytracing
 					{
 						double curD = cur.Intersect(ray);
 
-						if (curD < dist)
+						if (curD <= dist)
 						{
 							dist = curD;
 							intersector = cur;
@@ -238,9 +238,6 @@ namespace RaytracerCore.Raytracing
 					{
 						Ray ray = camera.GetRay(x, y).Offset(camera.imagePlane);
 						values[(y * data.Width) + x] = GetColor(ray).ToArgb();
-
-						/*if (x == 375 && y == 520)
-							GetColor(ray);*/
 					}
 				}
 

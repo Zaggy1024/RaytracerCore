@@ -44,7 +44,7 @@ namespace RaytracerCore
 		private void UpdateImages()
 		{
 			Util.Assert(SynchronizationContext.Current == Context, "Do not update the displayed image off the GUI thread.");
-			Util.Assert(DebugImage == null || RenderedImage.Size == DebugImage.Size, "Rendered and debug image sizes do not match.");
+			Util.Assert(!DisplayDebug || DebugImage == null || RenderedImage.Size == DebugImage.Size, "Rendered and debug image sizes do not match.");
 
 			if (imageRendered.Image == null || imageRendered.Image.Size != RenderedImage.Size)
 			{
@@ -101,11 +101,13 @@ namespace RaytracerCore
 						Bitmap image = new Bitmap(CurrentRaytracer.Scene.Width, CurrentRaytracer.Scene.Height, PixelFormat.Format32bppArgb);
 						Graphics.FromImage(image).Clear(CurrentRaytracer.Scene.BackgroundRGB.ToColor(CurrentRaytracer.Scene.BackgroundAlpha));
 						RenderedImage = image;
+
+						DebugImage = null;
+						SceneInspector?.ChangeScene(CurrentRaytracer.Scene);
+
 						UpdateImages();
 
 						UpdateSceneButtons();
-
-						SceneInspector?.ChangeScene(CurrentRaytracer.Scene);
 					}, null);
 
 					CurrentRaytracer.Start();

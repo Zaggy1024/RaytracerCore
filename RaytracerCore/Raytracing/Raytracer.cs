@@ -42,7 +42,7 @@ namespace RaytracerCore.Raytracing
 		public volatile bool Running = false;
 		public volatile bool Paused = false;
 
-		private Random Rand;
+		private readonly Random Rand;
 		
 		public Raytracer(FullRaytracer fullRaytracer, Scene scene, PixelPos[] pixels)
 		{
@@ -90,10 +90,6 @@ namespace RaytracerCore.Raytracing
 					// Return miss color for misses
 					return Scene.AmbientRGB;
 				}
-
-#if DEBUG
-				Scene.RayTrace(ray, prevHit);
-#endif
 
 				if (Scene.DebugGeom)
 				{

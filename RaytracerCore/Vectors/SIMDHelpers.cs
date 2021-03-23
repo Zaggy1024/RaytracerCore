@@ -161,7 +161,6 @@ namespace RaytracerCore.Vectors
 			vector = Avx.HorizontalAdd(vector, vector);
 
 			// (2+3)(2+3)(0+1)(0+1)
-			//Vector256<double> b = Avx.Permute2x128(a, a, 0b0000_0001);
 			Vector256<double> b = Avx2.Permute4x64(vector, 0b01_00_11_10);
 
 			// (sum())(sum())(sum())(sum())
