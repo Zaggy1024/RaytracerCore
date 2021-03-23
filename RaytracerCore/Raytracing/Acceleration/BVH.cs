@@ -213,7 +213,7 @@ namespace RaytracerCore.Raytracing.Acceleration
 
 		public readonly BVH<T> Left, Right;
 
-		public readonly IBoundingVolume Volume;
+		public readonly AABB Volume;
 
 		public bool SkipVolume { get; internal set; }
 		private double _Cost = -1;
@@ -288,7 +288,7 @@ namespace RaytracerCore.Raytracing.Acceleration
 		/// <returns>A list of intersections, sorted by distance.</returns>
 		public IEnumerable<BoundingIntersection<T>> IntersectAll(Ray ray)
 		{
-			List<BoundingIntersection<T>> result = new List<BoundingIntersection<T>>();
+			List<BoundingIntersection<T>> result = new List<BoundingIntersection<T>>(5);
 			IntersectAll(ray, result, default);
 			// Use a stable sort, slightly slower than List.Sort (unstable)
 			Util.InsertSort(result, IntersectionSorter);

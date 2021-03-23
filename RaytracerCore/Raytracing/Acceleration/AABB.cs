@@ -11,7 +11,7 @@ namespace RaytracerCore.Raytracing.Acceleration
 	/// <summary>
 	/// Axis-Aligned Bounding Box
 	/// </summary>
-	class AABB : IBoundingVolume
+	public class AABB : IBoundingVolume
 	{
 		public static AABB CreateSized(Vec4D center, Vec4D size)
 		{
