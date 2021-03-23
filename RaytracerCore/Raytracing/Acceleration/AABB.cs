@@ -118,14 +118,13 @@ namespace RaytracerCore.Raytracing.Acceleration
 				Avx.Compare(direction, zeroes, FloatComparisonMode.OrderedEqualNonSignaling),
 				Avx.And(
 					Avx.Compare(origin, min, FloatComparisonMode.OrderedGreaterThanOrEqualNonSignaling),
-					Avx.Compare(origin, min, FloatComparisonMode.OrderedLessThanOrEqualNonSignaling)));
+					Avx.Compare(origin, max, FloatComparisonMode.OrderedLessThanOrEqualNonSignaling)));
 			min = Avx.BlendVariable(min, SIMDHelpers.BroadcastScalar4(double.NegativeInfinity), dirInfMask);
 			max = Avx.BlendVariable(max, SIMDHelpers.BroadcastScalar4(double.PositiveInfinity), dirInfMask);
 
-			// Flip slabs in direction axes that are negative
-			Vector256<double> dirNegMask = Avx.Compare(direction, zeroes, FloatComparisonMode.OrderedLessThanNonSignaling);
-			Vector256<double> minMasked = Avx.BlendVariable(min, max, dirNegMask);
-			Vector256<double> maxMasked = Avx.BlendVariable(max, min, dirNegMask);
+			// Flip slabs in direction axes that are negative (using direction as mask takes the most significant bit, the sign.. probably includes -0)
+			Vector256<double> minMasked = Avx.BlendVariable(min, max, direction);
+			Vector256<double> maxMasked = Avx.BlendVariable(max, min, direction);
 
 			direction = Avx.Divide(Vector256.Create(1D), direction);
 			Vector256<double> near4 = Avx.Multiply(Avx.Subtract(minMasked, origin), direction);
@@ -170,7 +169,7 @@ namespace RaytracerCore.Raytracing.Acceleration
 			max = (max - ray.Origin) / d;
 
 			// Fix cases of zeroed direction axes
-			if (ray.Direction.Z == 0 || ray.Direction.Y == 0 || ray.Direction.Z == 0)
+			if (ray.Direction.Z == 0 | ray.Direction.Y == 0 | ray.Direction.Z == 0)
 			{
 				min = new Vec4D(
 					(double.IsNaN(min.X) && Util.ValueInRange(ray.Origin.X, Minimum.X, Maximum.X)) ? double.NegativeInfinity : min.X,
