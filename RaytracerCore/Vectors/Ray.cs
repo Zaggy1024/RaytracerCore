@@ -9,7 +9,7 @@ namespace RaytracerCore.Vectors
 	/// </summary>
 	public struct Ray
 	{
-		public static readonly Ray Zero = new Ray(Vec4D.Zero, Vec4D.Zero);
+		public static readonly Ray Zero = new Ray();
 
 		/// <summary>Returns a ray starting from <paramref name="origin"/> and extending infinitely toward the <paramref name="end"/> point.</summary>
 		public static Ray FromTo(Vec4D origin, Vec4D end)
@@ -20,9 +20,6 @@ namespace RaytracerCore.Vectors
 		/// <summary>Create a directional ray starting from <paramref name="origin"/>. The <paramref name="direction"/> vector will be normalized.</summary>
 		public static Ray Directional(Vec4D origin, Vec4D direction)
 		{
-			if (direction.SquaredLength == 1)
-				return new Ray(origin, direction);
-
 			return new Ray(origin, direction.Normalize());
 		}
 
@@ -32,10 +29,14 @@ namespace RaytracerCore.Vectors
 		public readonly Vec4D Direction;
 
 		/// <summary>Used to initialize a <see cref="Ray"/> with an already-normalized <paramref name="direction"/> vector.</summary>
-		private Ray(Vec4D origin, Vec4D direction)
+		public Ray(Vec4D origin, Vec4D direction)
 		{
 			Origin = origin;
 			Direction = direction;
+
+#if DEBUG
+			Util.AssertNearlyEqual(direction.SquaredLength, 1, 1e-9, "Ray was instantiated with a non-unit direction vector.");
+#endif
 		}
 
 		/// <summary>Creates a new <see cref="Ray"/> transformed by the <paramref name="matrix"/> parameter, with the new direction vector normalized.</summary>

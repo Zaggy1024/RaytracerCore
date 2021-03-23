@@ -190,7 +190,7 @@ namespace RaytracerCore.Raytracing
 					if (debugRay != null) debugRay.Type = BounceType.Transmitted;
 
 					outDir = (ratio * ray.Direction) + (((ratio * cos) - Math.Sqrt(radicand)) * roughNormal);
-					outRay = Ray.Directional(hit.Position, outDir);
+					outRay = new Ray(hit.Position, outDir);
 					newTint = hit.Primitive.Refraction;
 
 					// Only tint on entering the object, and don't count the recursivity
@@ -209,7 +209,7 @@ namespace RaytracerCore.Raytracing
 					{
 						if (debugRay != null) debugRay.Type = BounceType.Specular;
 
-						outRay = Ray.Directional(hit.Position, outDir);
+						outRay = new Ray(hit.Position, outDir);
 						newTint = hit.Primitive.Specular;
 					}
 				}
@@ -220,7 +220,7 @@ namespace RaytracerCore.Raytracing
 
 					double z = (2 * Math.Acos(Rand.NextDouble())) / Math.PI;
 					double theta = Rand.NextDouble() * Math.PI * 2;
-					outRay = Ray.Directional(hit.Position, Vec4D.CreateHorizon(hit.Normal, z, theta));
+					outRay = new Ray(hit.Position, Vec4D.CreateHorizon(hit.Normal, z, theta));
 					newTint = hit.Primitive.Diffuse;
 				}
 				else
