@@ -60,9 +60,9 @@ namespace RaytracerCore.Raytracing
 			return Vec4D.CreateHorizon(dir, z, theta);
 		}
 
-		private Vec4D Reflection(Vec4D normal, Vec4D incoming)
+		private Vec4D Reflection(Vec4D normal, Vec4D incoming, double cos)
 		{
-			return incoming - (normal * (incoming.Dot(normal) * 2));
+			return incoming + (normal * (cos * 2));
 		}
 
 		// Inline to optimize out the debug code when not using the inspector.
@@ -75,6 +75,10 @@ namespace RaytracerCore.Raytracing
 
 			for (int i = 0; i <= Scene.Recursion; i++)
 			{
+				// Periodically normalize the direction vector to prevent compounding error
+				if (i % 3 == 0)
+					ray = Ray.Directional(ray.Origin, ray.Direction);
+
 				hit = Scene.RayTrace(ray, prevHit);
 
 				DebugRay debugRay = debug != null ? debug[i] = new DebugRay() { Hit = hit } : null;
@@ -113,13 +117,13 @@ namespace RaytracerCore.Raytracing
 				double refrLum = hit.Primitive.Refraction.Luminance;
 				double emisLum = hit.Primitive.Emission.Luminance;
 
+				double cos = -roughNormal.Dot(ray.Direction);
+				double cosOut = 0;
 				double iorRatio = 0;
 
 				// Calculate ratio of reflection to transmission on this hit
-				if ((refrLum > 0 | specLum > 0) && hit.Primitive.RefractiveIndex != 0)
+				if ((refrLum > 0 | specLum > 0) && hit.Primitive.RefractiveIndex != 0 && cos >= 0)
 				{
-					double cosIn = -roughNormal.Dot(ray.Direction);
-
 					double iorIn;
 					double iorOut;
 
@@ -135,7 +139,7 @@ namespace RaytracerCore.Raytracing
 					}
 
 					iorRatio = iorIn / iorOut;
-					double sinOut = iorRatio * Math.Sqrt(1 - (cosIn * cosIn));
+					double sinOut = iorRatio * Math.Sqrt(1 - (cos * cos));
 
 					// Skip refraction when we get total internal reflection
 					if (sinOut >= 1)
@@ -146,16 +150,19 @@ namespace RaytracerCore.Raytracing
 					}
 					else
 					{
-						cosIn = Math.Abs(cosIn);
-						double cosOut = Math.Sqrt(1 - (sinOut * sinOut));
-						double ratioSWave = ((iorOut * cosIn) - (iorIn * cosOut)) / ((iorOut * cosIn) + (iorIn * cosOut));
-						double ratioPWave = ((iorIn * cosIn) - (iorOut * cosOut)) / ((iorIn * cosIn) + (iorOut * cosOut));
+						cosOut = Math.Sqrt(1 - (sinOut * sinOut));
+						double ratioSWave = ((iorOut * cos) - (iorIn * cosOut)) / ((iorOut * cos) + (iorIn * cosOut));
+						double ratioPWave = ((iorIn * cos) - (iorOut * cosOut)) / ((iorIn * cos) + (iorOut * cosOut));
 						double ratio = ((ratioSWave * ratioSWave) + (ratioPWave * ratioPWave)) / 2;
 						specLum *= ratio;
 						refrLum *= 1 - ratio;
 
 						if (debugRay != null) debugRay.FresnelRatio = ratio;
 					}
+				}
+				else
+				{
+					refrLum = 0;
 				}
 
 				double totalLum = diffLum + specLum + refrLum + emisLum;
@@ -173,23 +180,15 @@ namespace RaytracerCore.Raytracing
 				}
 
 				DoubleColor newTint = DoubleColor.Black;
-				Vec4D outDir;
 				double rayRand = Rand.NextDouble() * totalLum;
-				double radicand;
 
 				// Choose whether to do a specular bounce based on brightness of specular
 				if ((rayRand -= refrLum) <= 0)
 				{
 					// Transmission implementation
-					double ratio = iorRatio;
-					double cos = -roughNormal.Dot(ray.Direction);
-					radicand = 1 - (ratio * ratio * (1 - (cos * cos)));
-
-					Util.Assert(radicand > 0, "Fresnel equations did not prevent total internal reflection in refraction code");
-
 					if (debugRay != null) debugRay.Type = BounceType.Transmitted;
 
-					outDir = (ratio * ray.Direction) + (((ratio * cos) - Math.Sqrt(radicand)) * roughNormal);
+					Vec4D outDir = (roughNormal * -cosOut) + ((ray.Direction + (roughNormal * cos)) * iorRatio);
 					outRay = new Ray(hit.Position, outDir);
 					newTint = hit.Primitive.Refraction;
 
@@ -202,9 +201,9 @@ namespace RaytracerCore.Raytracing
 					if (debugRay != null) debugRay.Type = BounceType.SpecularFail;
 
 					// Specular reflection
-					roughNormal = RandomShine(hit.Normal, hit.Primitive.Shininess);
-					outDir = Reflection(roughNormal, ray.Direction);
+					Vec4D outDir = Reflection(roughNormal, ray.Direction, cos);
 
+					// Determine whether the rough normal reflection is heading outward before continuing
 					if (outDir.Dot(hit.Normal) > 0)
 					{
 						if (debugRay != null) debugRay.Type = BounceType.Specular;

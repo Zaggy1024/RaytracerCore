@@ -14,7 +14,7 @@ namespace RaytracerCore
 	/// </summary>
 	public static class Util
 	{
-		public static readonly double NearEnough = 1e-24;
+		public const double NearEnough = 1e-24;
 
 		/// <summary>Format a <see cref="TimeSpan"/> for human readability.</summary>
 		/// <param name="time">The time span to format.</param>
