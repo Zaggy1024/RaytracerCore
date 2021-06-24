@@ -121,13 +121,47 @@ namespace RaytracerCore.Raytracing.Acceleration
 				nodes[i] = new BVH<T>(node, tree.GetNearestNeighbor(node).Element);
 			}
 
-			MinQueue<BVH<T>> cheapPairs = new MinQueue<BVH<T>>(nodes, pairComparer);
+			/*MinQueue<BVH<T>> cheapPairs = new MinQueue<BVH<T>>(nodes, pairComparer);
 
 			while (true)
 			{
 				// Get the next cheapest pair to make
 				BVH<T> cheapest = cheapPairs.Min;
 				cheapPairs.RemoveMin();
+
+				// If we've already paired this node, leave it removed.
+				if (!tree.ContainsElement(cheapest.Left))
+					continue;
+
+				// If we've paired the left element but not the right, find the new nearest neighbor and resort.
+				if (!tree.ContainsElement(cheapest.Right))
+				{
+					cheapPairs.Add(new BVH<T>(cheapest.Left, tree.GetNearestNeighbor(cheapest.Left).Element));
+					cheapPairs = new MinQueue<BVH<T>>(cheapPairs, pairComparer);
+					continue;
+				}
+
+				// Finalize parentizing this pair, so that resulting BVH is more efficient.
+				MakeParent(cheapest);
+
+				tree.Remove(cheapest.Left);
+
+				// If the tree is a leaf, we're removing the last elements, exit early.
+				if (tree.IsLeaf)
+					return cheapest;
+
+				tree.Remove(cheapest.Right);
+				tree.Add(cheapest);
+
+				cheapPairs.Add(new BVH<T>(cheapest, tree.GetNearestNeighbor(cheapest).Element));
+			}*/
+
+			Heap<BVH<T>> cheapPairs = new Heap<BVH<T>>(nodes, pairComparer);
+
+			while (true)
+			{
+				// Get the next cheapest pair to make
+				BVH<T> cheapest = cheapPairs.Extract();
 
 				// If we've already paired this node, leave it removed.
 				if (!tree.ContainsElement(cheapest.Left))
@@ -254,11 +288,11 @@ namespace RaytracerCore.Raytracing.Acceleration
 		}
 
 		/// <summary>
-		/// Intersect a ray with all bounding volumes, adding all intersections to the provided list.
+		/// Intersect a ray with all leaves' bounding volumes, adding all intersections to the provided list.
 		/// </summary>
 		/// <param name="ray">The ray to use for intersections.</param>
 		/// <param name="list">A reference to a list to add intersections to.</param>
-		public void IntersectAll(Ray ray, in ICollection<BoundingIntersection<T>> list, (double near, double far) distances)
+		public void IntersectLeaves(Ray ray, in ICollection<BoundingIntersection<T>> list, (double near, double far) distances)
 		{
 			if (!SkipVolume)
 			{
@@ -277,26 +311,59 @@ namespace RaytracerCore.Raytracing.Acceleration
 			}
 
 			// Otherwise, begin intersecting the children
-			Left.IntersectAll(ray, list, distances);
-			Right.IntersectAll(ray, list, distances);
+			Left.IntersectLeaves(ray, list, distances);
+			Right.IntersectLeaves(ray, list, distances);
 		}
 
 		/// <summary>
-		/// Intersect a ray with all bounding volumes, returning all intersections in a list.
+		/// Intersect a ray with all leaves' bounding volumes, returning all intersections in a list.
 		/// </summary>
 		/// <param name="ray">The ray to use for intersections.</param>
 		/// <returns>A list of intersections, sorted by distance.</returns>
-		public IEnumerable<BoundingIntersection<T>> IntersectAll(Ray ray)
+		public IEnumerable<BoundingIntersection<T>> IntersectLeaves(Ray ray)
 		{
+			// Initialize the list with an arbitrary number as a guess of the most hits per ray we should usually expect
 			List<BoundingIntersection<T>> result = new List<BoundingIntersection<T>>(5);
-			IntersectAll(ray, result, default);
-			// Use a stable sort, slightly slower than List.Sort (unstable)
+			IntersectLeaves(ray, result, default);
+			// Use a stable sort for more consistency, slightly slower than List.Sort (unstable)
 			Util.InsertSort(result, IntersectionSorter);
 			return result;
 		}
 
+		private int GetMaxDepth(int depth)
+		{
+			if (IsLeaf)
+				return depth;
+
+			depth++;
+			return Math.Max(Left.GetMaxDepth(depth), Right.GetMaxDepth(depth));
+		}
+
+		public int GetMaxDepth()
+		{
+			return GetMaxDepth(0);
+		}
+
 		/// <summary>
-		/// Gets the average distance between the children of this node. Used to calculate the efficiency of groupings of nodes.
+		/// Gets the number of branches or leaves intersecting with the provided ray.
+		/// </summary>
+		/// <param name="ray">The ray to use for intersections.</param>
+		/// <returns>The count of intersecting tree nodes.</returns>
+		public int GetIntersectionCount(Ray ray)
+		{
+			bool hit = Volume.Intersect(ray).far >= 0;
+
+			if (!hit)
+				return 0;
+
+			if (IsLeaf)
+				return 1;
+
+			return 1 + Left.GetIntersectionCount(ray) + Right.GetIntersectionCount(ray);
+		}
+
+		/// <summary>
+		/// Gets a heuristic to determine the efficiency of grouping this node's children.
 		/// </summary>
 		public double Cost
 		{

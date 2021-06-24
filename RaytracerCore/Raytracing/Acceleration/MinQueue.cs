@@ -295,6 +295,25 @@ namespace RaytracerCore.Raytracing.Acceleration
 			}
 		}
 
+		private int GetDepth(Node node)
+		{
+			if (node.IsLeaf)
+				return 0;
+
+			return 1 + Math.Max(GetDepth(node.Left), GetDepth(node.Right));
+		}
+
+		public int Depth
+		{
+			get
+			{
+				if (Root == null)
+					return 0;
+
+				return GetDepth(Root);
+			}
+		}
+
 		public override string ToString()
 		{
 			return $"Queue Count = {this.Count()}";

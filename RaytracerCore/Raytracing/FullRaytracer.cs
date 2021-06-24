@@ -274,7 +274,10 @@ namespace RaytracerCore.Raytracing
 					break;
 
 				TimeSpan time = stopwatch.Elapsed;
-				ulong samples = RunningTracers.Aggregate(0UL, (a, b) => a + b.Samples);
+				ulong samples = 0;
+				foreach (Raytracer tracer in RunningTracers)
+					samples += tracer.Samples;
+				samples = RunningTracers.Aggregate(0UL, (a, b) => a + b.Samples);
 				double perPixel = samples / (double)(w * h);
 				double progress = perPixel / (perPixel + 1000);
 
@@ -291,7 +294,7 @@ namespace RaytracerCore.Raytracing
 				//prevMs = estMs;
 
 				// Wait for all tracers to pause and then pause this thread as well
-				if (Paused && finishedPausing)
+				if (finishedPausing)
 				{
 					// Pause the stopwatch and check for pause, then resume once unblocked
 					MainWaiter.WaitOne();
