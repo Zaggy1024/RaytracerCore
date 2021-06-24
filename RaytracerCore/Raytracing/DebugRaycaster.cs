@@ -106,6 +106,8 @@ namespace RaytracerCore.Raytracing
 		private DisplayMode NextMode = DisplayMode.Primitives;
 		protected IIntersector[] NextIntersectors = null;
 
+		private int MaxBoundingBoxes = -1;
+
 		public DebugRaycaster(Scene scene)
 		{
 			Scene = scene;
@@ -199,18 +201,15 @@ namespace RaytracerCore.Raytracing
 					if (!Scene.HasAccelerator)
 						return Color.Transparent;
 
-					BoundingIntersection<Primitive> collision = Scene.Accelerator.IntersectAll(ray).FirstOrDefault();
+					int count = Scene.Accelerator.GetIntersectionCount(ray);
 
-					if (collision == null)
+					if (MaxBoundingBoxes < count)
+						MaxBoundingBoxes = count;
+
+					if (count == 0)
 						return Color.Transparent;
 
-					int id = collision.Node.LeafID;
-
-					// Handle branches as well using their hashcodes, since they won't be included in the scene list
-					if (id < 0)
-						id = collision.Node.GetHashCode();
-
-					return GetColorFromID(id);
+					return Color.FromArgb(Math.Min(count, 255), 255, 255, 255);
 				default:
 					throw new Exception($"Unknown debug display mode {Mode}.");
 			}
@@ -238,6 +237,25 @@ namespace RaytracerCore.Raytracing
 					{
 						Ray ray = camera.GetRay(x, y).Offset(camera.imagePlane);
 						values[(y * data.Width) + x] = GetColor(ray).ToArgb();
+					}
+				}
+
+				int count = w * h;
+
+				for (int i = 0; i < count; i++)
+				{
+					Color color = Color.FromArgb(values[i]);
+
+					switch (Mode)
+					{
+						case DisplayMode.BoundingVolumes:
+							double a = color.A / (double)MaxBoundingBoxes;
+							a = Math.Sqrt(a);
+							values[i] = Color.FromArgb((int)(a * 255), color).ToArgb();
+							break;
+						default:
+							values[i] = Color.FromArgb(color.A / 2, color).ToArgb();
+							break;
 					}
 				}
 
