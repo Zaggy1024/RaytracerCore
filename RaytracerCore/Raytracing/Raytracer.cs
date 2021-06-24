@@ -183,7 +183,7 @@ namespace RaytracerCore.Raytracing
 				double rayRand = Rand.NextDouble() * totalLum;
 
 				// Choose whether to do a specular bounce based on brightness of specular
-				if ((rayRand -= refrLum) <= 0)
+				if (refrLum != 0 && (rayRand -= refrLum) <= 0)
 				{
 					// Transmission implementation
 					if (debugRay != null) debugRay.Type = BounceType.Transmitted;
@@ -196,7 +196,7 @@ namespace RaytracerCore.Raytracing
 					if (hit.Inside)
 						newTint = new DoubleColor(1);
 				}
-				else if ((rayRand -= specLum) <= 0)
+				else if (specLum != 0 && (rayRand -= specLum) <= 0)
 				{
 					if (debugRay != null) debugRay.Type = BounceType.SpecularFail;
 
@@ -212,7 +212,7 @@ namespace RaytracerCore.Raytracing
 						newTint = hit.Primitive.Specular;
 					}
 				}
-				else if ((rayRand -= diffLum) <= 0)
+				else if (diffLum != 0 && (rayRand -= diffLum) <= 0)
 				{
 					// Diffuse reflection
 					if (debugRay != null) debugRay.Type = BounceType.Diffuse;
