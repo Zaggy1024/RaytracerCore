@@ -70,7 +70,7 @@ namespace RaytracerCore.Raytracing
 #if BVH
 			if (Accelerator != null)
 			{
-				IEnumerable<BoundingIntersection<Primitive>> intersections = Accelerator.IntersectAll(ray);
+				IEnumerable<BoundingIntersection<Primitive>> intersections = Accelerator.IntersectLeaves(ray);
 				BoundingIntersection<Primitive> previous = null;
 
 				foreach (BoundingIntersection<Primitive> current in intersections)
