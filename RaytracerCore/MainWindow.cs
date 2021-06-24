@@ -19,6 +19,7 @@ namespace RaytracerCore
 
 		FullRaytracer CurrentRaytracer;
 		string CurrentPath;
+		bool ScenePrepared = false;
 
 		readonly List<RayInspector> OpenInspectors = new List<RayInspector>();
 		SceneInspector SceneInspector;
@@ -62,7 +63,8 @@ namespace RaytracerCore
 				if (DebugImage != null && DisplayDebug)
 				{
 					ImageAttributes attributes = new ImageAttributes();
-					attributes.SetColorMatrix(new ColorMatrix() { Matrix33 = .5F });
+					// Uncomment to set image alpha to .5
+					//attributes.SetColorMatrix(new ColorMatrix() { Matrix33 = .5F });
 					graphics.DrawImage(DebugImage,
 						new Rectangle(Point.Empty, DebugImage.Size),
 						0, 0, DebugImage.Width, DebugImage.Height,
@@ -81,6 +83,7 @@ namespace RaytracerCore
 				{
 					// If we're already stopping, another thread is either restarting or changing scenes.
 					// Don't start a new render thread on the same raytracer.
+					// TODO: May not start the new raytracer??
 					if (CurrentRaytracer.IsStopping)
 					{
 						change?.Invoke();
@@ -136,6 +139,12 @@ namespace RaytracerCore
 						RenderedImage = bitmap;
 						UpdateImages();
 					}
+
+					if (!ScenePrepared && CurrentRaytracer.Scene.IsReady)
+					{
+						ScenePrepared = true;
+						SceneInspector?.UpdateBVH();
+					}
 				}
 			}, null);
 		}
@@ -181,6 +190,8 @@ namespace RaytracerCore
 				comboCamera.SelectedIndex = 0;
 
 				CloseInspectors();
+
+				ScenePrepared = false;
 
 				RestartRender(() => {
 					CurrentRaytracer = new FullRaytracer(scene, Environment.ProcessorCount, UpdateRenderedImage, UpdateDebugImage);

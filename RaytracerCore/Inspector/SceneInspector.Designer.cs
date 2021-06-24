@@ -153,6 +153,7 @@ namespace RaytracerCore.Inspector
 			this.treeScene.Size = new System.Drawing.Size(400, 486);
 			this.treeScene.TabIndex = 0;
 			this.treeScene.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeScene_AfterSelect);
+			this.treeScene.NodeMouseDoubleClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeScene_NodeMouseDoubleClick);
 			// 
 			// treePrimitive
 			// 

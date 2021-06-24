@@ -54,6 +54,12 @@ namespace RaytracerCore.Inspector
 		private Scene _Scene;
 		private object Selection;
 
+		private List<Primitive> Primitives;
+		private List<IObject> Objects;
+		private Dictionary<IObject, List<Primitive>> ObjectPrimitives;
+
+		private TreeNode LoadMoreNode = new TreeNode("Load more...");
+
 		public SceneInspector(Scene scene)
 		{
 			InitializeComponent();
@@ -100,7 +106,7 @@ namespace RaytracerCore.Inspector
 
 		public void UpdateSceneSelection()
 		{
-			treePrimitive.SuspendLayout();
+			treePrimitive.BeginUpdate();
 			treePrimitive.Nodes.Clear();
 
 			if (treeScene.SelectedNode == null)
@@ -117,69 +123,125 @@ namespace RaytracerCore.Inspector
 				treePrimitive.SelectedNode = root;
 			}
 
-			treePrimitive.ResumeLayout();
+			treePrimitive.EndUpdate();
+		}
+
+		private void AddSceneSet()
+		{
+			const int batchSize = 1000;
+
+			int count = treeScene.Nodes.Count;
+
+			if (count == 0 || treeScene.Nodes[count - 1] == LoadMoreNode)
+			{
+				treeScene.BeginUpdate();
+
+				if (count > 0)
+					treeScene.Nodes.RemoveAt(count - 1);
+
+				int firstNew = treeScene.Nodes.Count;
+
+				int countLeft = Objects.Count + Primitives.Count - firstNew;
+				TreeNode[] nodes = new TreeNode[Math.Min(batchSize, countLeft)];
+
+				for (int i = 0; i < nodes.Length; i++)
+				{
+					int current = firstNew + i;
+
+					if (current < Objects.Count)
+					{
+						IObject obj = Objects[current];
+						List<Primitive> children = ObjectPrimitives[obj];
+
+						TreeNode objectNode = Nodifier.Create($"Object {current} ({obj.Name}):");
+						objectNode.Tag = obj;
+						objectNode.Expand();
+
+						foreach (Primitive child in children)
+						{
+							TreeNode childNode = Nodifier.Create($"#{child.ID} ({child.Name})");
+							childNode.Tag = child;
+							objectNode.Nodes.Add(childNode);
+						}
+
+						nodes[i] = objectNode;
+					}
+					else
+					{
+						Primitive primitive = Primitives[current - Objects.Count];
+						TreeNode primitiveNode = Nodifier.Create($"#{primitive.ID} ({primitive.Name})");
+						primitiveNode.Tag = primitive;
+						nodes[i] = primitiveNode;
+					}
+				}
+
+				treeScene.Nodes.AddRange(nodes);
+
+				if (countLeft > batchSize)
+				{
+					treeScene.Nodes.Add(LoadMoreNode);
+				}
+
+				treeScene.EndUpdate();
+			}
 		}
 
 		public void UpdateScene()
 		{
-			treeScene.SuspendLayout();
 			treeScene.Nodes.Clear();
 
-			IList<Primitive> primitives = _Scene.Primitives;
+			Primitives = new List<Primitive>();
+			Objects = new List<IObject>();
+			ObjectPrimitives = new Dictionary<IObject, List<Primitive>>();
 
-			// TODO: Fill on demand so that large numbers of primitives don't freeze the app.
-			if (primitives.Count < 1000)
+			foreach (Primitive primitive in _Scene.Primitives)
 			{
-				Dictionary<IObject, TreeNode> objects = null;
-				List<TreeNode> nodesToAdd = new List<TreeNode>();
+				IObject parent = primitive.Parent;
 
-				// Create dictionary of objects to their nodes so that we can create a simple hierarchy.
-				if (checkHierarchy.Checked)
+				if (checkHierarchy.Checked && parent != null)
 				{
-					objects = new Dictionary<IObject, TreeNode>();
-					int objectI = 0;
-
-					foreach (Primitive primitive in primitives)
+					if (!ObjectPrimitives.ContainsKey(parent))
 					{
-						IObject parent = primitive.Parent;
-
-						if (parent != null && !objects.ContainsKey(parent))
-						{
-							TreeNode objectNode = Nodifier.Create($"Object {objectI} ({parent.Name}):");
-							objectNode.Tag = parent;
-							objects.Add(parent, objectNode);
-							objectNode.Expand();
-
-							nodesToAdd.Add(objectNode);
-							objectI++;
-						}
+						Objects.Add(parent);
+						ObjectPrimitives[parent] = new List<Primitive>();
 					}
-				}
 
-				// Add each primitive to its parent object's node, or the root.
-				foreach (Primitive primitive in primitives)
+					ObjectPrimitives[parent].Add(primitive);
+				}
+				else
 				{
-					TreeNode node = Nodifier.Create($"#{primitive.ID} ({primitive.Name})");
-					node.Tag = primitive;
-
-					if (primitive.Parent != null && objects != null)
-						objects[primitive.Parent].Nodes.Add(node);
-					else
-						nodesToAdd.Add(node);
+					Primitives.Add(primitive);
 				}
-
-				treeScene.Nodes.AddRange(nodesToAdd.ToArray());
 			}
 
-			treeScene.ResumeLayout();
+			AddSceneSet();
 
 			if (treeScene.Nodes.Count > 0)
 				treeScene.SelectedNode = treeScene.Nodes[0];
+
+			SendDisplaySettingUpdate(DisplaySettingField.All);
+		}
+
+		public void UpdateBVH()
+		{
+			treeBVH.BeginUpdate();
+			treeBVH.Nodes.Clear();
+
+			if (_Scene.Accelerator != null)
+			{
+				TreeNode root = Nodifier.CreateBVHTree(_Scene.Accelerator, "Root", _Scene);
+				root.Expand();
+				treeBVH.Nodes.Add(root);
+
+				treeBVH.SelectedNode = root;
+			}
+
+			treeBVH.EndUpdate();
 		}
 
 		public void UpdateBVHSelection()
 		{
-			treeBVHNode.SuspendLayout();
+			treeBVHNode.BeginUpdate();
 			treeBVHNode.Nodes.Clear();
 
 			if (treeBVH.SelectedNode == null)
@@ -199,24 +261,7 @@ namespace RaytracerCore.Inspector
 				treeBVHNode.SelectedNode = root;
 			}
 
-			treeBVHNode.ResumeLayout();
-		}
-
-		public void UpdateBVH()
-		{
-			treeBVH.SuspendLayout();
-			treeBVH.Nodes.Clear();
-
-			if (_Scene.Accelerator != null)
-			{
-				TreeNode root = Nodifier.CreateBVHTree(_Scene.Accelerator, "Root", _Scene);
-				root.Expand();
-				treeBVH.Nodes.Add(root);
-
-				treeBVH.SelectedNode = root;
-			}
-
-			treeBVH.ResumeLayout();
+			treeBVHNode.EndUpdate();
 		}
 
 		public void UpdateAll()
@@ -271,6 +316,14 @@ namespace RaytracerCore.Inspector
 		private void SceneInspector_FormClosed(object sender, FormClosedEventArgs e)
 		{
 			checkOverlay.Checked = false;
+		}
+
+		private void treeScene_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
+		{
+			if (e.Node == LoadMoreNode)
+			{
+				AddSceneSet();
+			}
 		}
 	}
 }

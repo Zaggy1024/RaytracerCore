@@ -34,6 +34,8 @@ namespace RaytracerCore.Raytracing
 
 		public double AirRefractiveIndex = 1.000293;
 
+		protected bool Ready = false;
+
 		public void Prepare()
 		{
 #if BVH
@@ -42,7 +44,11 @@ namespace RaytracerCore.Raytracing
 				_Accelerator = BVH.Construct(_Primitives);
 			}
 #endif
+
+			Ready = true;
 		}
+
+		public bool IsReady => Ready;
 
 		public void ResetAccelerator()
 		{
