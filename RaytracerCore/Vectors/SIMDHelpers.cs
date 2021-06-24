@@ -12,7 +12,7 @@ namespace RaytracerCore.Vectors
 	/// </summary>
 	class SIMDHelpers
 	{
-		public static readonly bool Enabled = Avx2.IsSupported;
+		public static readonly bool Enabled = Avx2.IsSupported && Fma.IsSupported;
 
 		/* 
 		 * x = 0
@@ -49,40 +49,15 @@ namespace RaytracerCore.Vectors
 			Vector256<double> rightB;
 
 			// Swizzle our vectors to perform the subtraction and multiplication with the correct operands
-			if (Avx2.IsSupported)
-			{
-				leftA = Avx2.Permute4x64(left, YZXW8);
-				leftB = Avx2.Permute4x64(left, ZXYW8);
-				rightA = Avx2.Permute4x64(right, ZXYW8);
-				rightB = Avx2.Permute4x64(right, YZXW8);
-			}
-			else
-			{
-				unsafe
-				{
-					double* vals = GetPtr(left);
-					leftA = Vector256.Create(vals[1], vals[2], vals[0], vals[3]);
-					leftB = Vector256.Create(vals[2], vals[0], vals[1], vals[3]);
-					vals = GetPtr(right);
-					rightA = Vector256.Create(vals[2], vals[0], vals[1], vals[3]);
-					rightB = Vector256.Create(vals[1], vals[2], vals[0], vals[3]);
-				}
-			}
+			leftA = Avx2.Permute4x64(left, YZXW8);
+			leftB = Avx2.Permute4x64(left, ZXYW8);
+			rightA = Avx2.Permute4x64(right, ZXYW8);
+			rightB = Avx2.Permute4x64(right, YZXW8);
 
-			// Use FMA instructions if possible for extra precision
-			if (Fma.IsSupported)
-			{
-				return Fma.MultiplySubtract(
-					leftA, // *
-					rightA,	// ) -
-					Avx.Multiply(leftB, rightB));
-			}
-			else
-			{
-				return Avx.Subtract(
-					Avx.Multiply(leftA, rightA),
-					Avx.Multiply(leftB, rightB));
-			}
+			return Fma.MultiplySubtract(
+				leftA, // *
+				rightA,	// ) -
+				Avx.Multiply(leftB, rightB));
 		}
 
 		/// <summary>

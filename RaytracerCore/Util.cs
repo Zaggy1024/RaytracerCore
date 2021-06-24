@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Collections.Generic;
-using System.Linq;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 using RaytracerCore.Raytracing;
 using RaytracerCore.Vectors;
-using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 namespace RaytracerCore
 {
@@ -121,13 +122,25 @@ namespace RaytracerCore
 		/// <param name="minimum">The minimum value to return.</param>
 		/// <param name="maximum">The maximum value to return.</param>
 		/// <returns>The clamped value.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 		public static double Clamp(double value, double minimum, double maximum)
 		{
-			if (value < minimum)
-				return minimum;
-			if (value > maximum)
-				return maximum;
-			return value;
+			if (Sse2.IsSupported)
+			{
+				Vector128<double> result = Vector128.CreateScalarUnsafe(value);
+				result = Sse2.MaxScalar(result, Vector128.CreateScalarUnsafe(minimum));
+				result = Sse2.MinScalar(result, Vector128.CreateScalarUnsafe(maximum));
+				return result.ToScalar();
+			}
+			else
+			{
+				// Not using Math.Min/Max to keep behavior consistent with intrinsics
+				if (value < minimum)
+					return minimum;
+				if (value > maximum)
+					return maximum;
+				return value;
+			}
 		}
 
 		/// <summary>
