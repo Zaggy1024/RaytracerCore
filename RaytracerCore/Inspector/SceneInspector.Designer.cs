@@ -198,6 +198,7 @@ namespace RaytracerCore.Inspector
 			this.treeBVH.Name = "treeBVH";
 			this.treeBVH.Size = new System.Drawing.Size(397, 517);
 			this.treeBVH.TabIndex = 0;
+			this.treeBVH.BeforeExpand += new System.Windows.Forms.TreeViewCancelEventHandler(this.treeBVH_BeforeExpand);
 			this.treeBVH.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeBVH_AfterSelect);
 			// 
 			// treeBVHNode

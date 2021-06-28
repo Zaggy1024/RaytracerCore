@@ -141,7 +141,7 @@ namespace RaytracerCore.Inspector
 			return node;
 		}
 
-		public static TreeNode CreateBVHTree(BVH<Primitive> bvhNode, string name, Scene scene)
+		public static TreeNode CreateBVHNode(BVH<Primitive> bvhNode, string name = null)
 		{
 			string subtitle = bvhNode.IsLeaf ? $"Leaf {bvhNode.LeafID}" : "Branch";
 
@@ -153,18 +153,24 @@ namespace RaytracerCore.Inspector
 				node = Create($"{name} ({subtitle})", name);
 
 			node.Tag = bvhNode;
+			return node;
+		}
+
+		public static TreeNode CreateBVHTree(BVH<Primitive> bvhNode, string name = null)
+		{
+			TreeNode node = CreateBVHNode(bvhNode, name);
 
 			if (!bvhNode.IsLeaf)
 			{
 				// Add children to the node if we're on a branch
 				foreach (BVH<Primitive> child in bvhNode.Children)
-					node.Nodes.Add(CreateBVHTree(child, null, scene));
+					node.Nodes.Add(CreateBVHTree(child, null));
 			}
 
 			return node;
 		}
 
-		public static TreeNode CreateBVHInfo(BVH<Primitive> bvhNode, string name, Scene scene)
+		public static TreeNode CreateBVHInfo(BVH<Primitive> bvhNode, string name)
 		{
 			string subtitle = bvhNode.IsLeaf ? "Leaf" : "Branch";
 
@@ -188,11 +194,6 @@ namespace RaytracerCore.Inspector
 			node.Nodes.Add(CreateText(bvhNode.SkipVolume, "Skip volume (parent is same)"));
 
 			return node;
-		}
-
-		public static TreeNode CreateBVH(BVH<Primitive> bvhNode, string name)
-		{
-			return CreateBVHTree(bvhNode, name, null);
 		}
 
 		public static TreeNode Create(object value, string name)

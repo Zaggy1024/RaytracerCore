@@ -58,7 +58,8 @@ namespace RaytracerCore.Inspector
 		private List<IObject> Objects;
 		private Dictionary<IObject, List<Primitive>> ObjectPrimitives;
 
-		private TreeNode LoadMoreNode = new TreeNode("Load more...");
+		private readonly TreeNode LoadMoreNode = new TreeNode("Load more...");
+		private readonly object BVHPlaceholder = new object();
 
 		public SceneInspector(Scene scene)
 		{
@@ -222,6 +223,29 @@ namespace RaytracerCore.Inspector
 			SendDisplaySettingUpdate(DisplaySettingField.All);
 		}
 
+		private TreeNode CreateBVHNode(BVH<Primitive> bvhNode)
+		{
+			TreeNode node = Nodifier.CreateBVHNode(bvhNode);
+
+			if (!bvhNode.IsLeaf)
+				node.Nodes.Add(new TreeNode("...") { Tag = BVHPlaceholder });
+
+			return node;
+		}
+
+		private void ExpandBVHNode(TreeNode node, bool force = false)
+		{
+			if (force || (node.Nodes.Count == 1 && node.Nodes[0].Tag == BVHPlaceholder))
+			{
+				Util.Assert(node.Tag is BVH<Primitive>, "Attempted to expand a tree node without a BVH tag.");
+
+				node.Nodes.Clear();
+				BVH<Primitive> bvh = (BVH<Primitive>)node.Tag;
+				node.Nodes.Add(CreateBVHNode(bvh.Left));
+				node.Nodes.Add(CreateBVHNode(bvh.Right));
+			}
+		}
+
 		public void UpdateBVH()
 		{
 			treeBVH.BeginUpdate();
@@ -229,10 +253,11 @@ namespace RaytracerCore.Inspector
 
 			if (_Scene.Accelerator != null)
 			{
-				TreeNode root = Nodifier.CreateBVHTree(_Scene.Accelerator, "Root", _Scene);
+				TreeNode root = Nodifier.CreateBVHNode(_Scene.Accelerator, "Root");
+				ExpandBVHNode(root, true);
 				root.Expand();
-				treeBVH.Nodes.Add(root);
 
+				treeBVH.Nodes.Add(root);
 				treeBVH.SelectedNode = root;
 			}
 
@@ -251,7 +276,7 @@ namespace RaytracerCore.Inspector
 
 			if (tag is BVH<Primitive> bvhNode)
 			{
-				TreeNode root = Nodifier.CreateBVHInfo(bvhNode, null, _Scene);
+				TreeNode root = Nodifier.CreateBVHInfo(bvhNode, null);
 				root.Expand();
 				if (root.Nodes.ContainsKey("Object"))
 					root.Nodes["Object"].Expand();
@@ -324,6 +349,13 @@ namespace RaytracerCore.Inspector
 			{
 				AddSceneSet();
 			}
+		}
+
+		private void treeBVH_BeforeExpand(object sender, TreeViewCancelEventArgs e)
+		{
+			treeBVH.BeginUpdate();
+			ExpandBVHNode(e.Node);
+			treeBVH.EndUpdate();
 		}
 	}
 }
