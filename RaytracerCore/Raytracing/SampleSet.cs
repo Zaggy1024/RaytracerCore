@@ -1,4 +1,6 @@
-﻿namespace RaytracerCore.Raytracing
+﻿using System;
+
+namespace RaytracerCore.Raytracing
 {
 	/// <summary>
 	/// Stores information about the samples performed in a pixel of a raytracer.
@@ -98,6 +100,11 @@
 			g += (back.G - g) * backAmt;
 			b += (back.B - b) * backAmt;
 			a += (backA - a) * backAlphaAmt;
+
+			const double gamma = 1 / 2.2;
+			r = Math.Pow(r, gamma);
+			g = Math.Pow(g, gamma);
+			b = Math.Pow(b, gamma);
 
 			return GetColorCode(r,
 				g,
