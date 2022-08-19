@@ -73,7 +73,7 @@ namespace RaytracerCore.Raytracing.Cameras
 		/// <param name="axis">The axis to rotate around.</param>
 		public void Rotate(double angle, Vec4D axis)
 		{
-			Mat4x4D rotMat = MatrixTransforms.Rotate(angle, axis);
+			Mat4x4D rotMat = MatrixTransforms.Rotate(angle, axis.Normalize());
 			position = rotMat * position;
 			look = rotMat * look;
 			up = rotMat * up;

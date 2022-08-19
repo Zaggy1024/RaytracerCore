@@ -24,8 +24,6 @@ namespace RaytracerCore.Vectors
 
 		public static Mat4x4D Rotate(double angle, Vec4D axis)
 		{
-			axis = axis.Normalize();
-
 			double cos = Math.Cos(angle);
 			double sin = Math.Sin(angle);
 

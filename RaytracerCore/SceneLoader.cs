@@ -284,8 +284,8 @@ namespace RaytracerCore
 								case "rotate":
 									Vec4D axis = NextVec(0);
 									double angle = NextDbl();
-									stack.Transform(MatrixTransforms.Rotate(Consts.toRadians(angle), axis));
-									invStack.InvTransform(MatrixTransforms.Rotate(-Consts.toRadians(angle), axis));
+									stack.Transform(MatrixTransforms.Rotate(Consts.toRadians(angle), axis.Normalize()));
+									invStack.InvTransform(MatrixTransforms.Rotate(-Consts.toRadians(angle), axis.Normalize()));
 									break;
 								case "pushtransform":
 									stack.Push();
