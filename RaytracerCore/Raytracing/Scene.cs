@@ -75,6 +75,8 @@ namespace RaytracerCore.Raytracing
 
 				foreach (BoundingIntersection<Primitive> current in intersections)
 				{
+					// No more intersections to process if current hit is null or
+					// the current hit's closest intersection is past the previous one's farthest
 					if (previous != null && current.Near > previous.Far)
 						break;
 

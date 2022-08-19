@@ -5,10 +5,10 @@
 		public readonly int X;
 		public readonly int Y;
 
-		public PixelPos(int newX, int newY)
+		public PixelPos(int x, int y)
 		{
-			X = newX;
-			Y = newY;
+			X = x;
+			Y = y;
 		}
 	}
 }
