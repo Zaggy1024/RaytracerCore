@@ -392,6 +392,9 @@ namespace RaytracerCore
 				{
 					DisplayDebug = e.Settings.OverlayEnabled;
 					refresh = DisplayDebug && DebugImage == null;
+
+					if (!refresh)
+						UpdateImages();
 				}
 
 				if (e.ChangedSettings.HasFlag(SceneInspector.DisplaySettingField.Category))
