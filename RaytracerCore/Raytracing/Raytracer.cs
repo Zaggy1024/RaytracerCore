@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Linq;
-using System.Threading;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Drawing;
 
 using RaytracerCore.Vectors;
 using RaytracerCore.Raytracing.Cameras;
@@ -33,22 +34,16 @@ namespace RaytracerCore.Raytracing
 
 		public FullRaytracer FullRaytracer;
 		public Scene Scene;
-
-		protected PixelPos[] Pixels;
 		
-		public ulong Samples = 0;
-		
-		public volatile bool Stop = false;
+		public bool Stop = false;
 		public volatile bool Running = false;
-		public volatile bool Paused = false;
 
 		private readonly Random Rand;
 		
-		public Raytracer(FullRaytracer fullRaytracer, Scene scene, PixelPos[] pixels)
+		public Raytracer(FullRaytracer fullRaytracer, Scene scene)
 		{
 			FullRaytracer = fullRaytracer;
 			Scene = scene;
-			Pixels = pixels;
 
 			Rand = new Random();
 		}
@@ -302,34 +297,35 @@ namespace RaytracerCore.Raytracing
 
 			Running = true;
 
-			while (!Stop)
+			Stopwatch stopwatch = new Stopwatch();
+
+			while (true)
 			{
-				for (uint pixel = 0; pixel < Pixels.Length && !Stop; pixel++)
+				Rectangle tile = FullRaytracer.GetWorkingTile();
+				DoubleColor[,] samples = new DoubleColor[tile.Width, tile.Height];
+
+				stopwatch.Restart();
+
+				for (int y = 0; y < tile.Height && !Stop; y++)
 				{
-					PixelPos pos = Pixels[pixel];
-
-					for (int i = 0; i < 1; i++)
+					for (int x = 0; x < tile.Width; x++)
 					{
-						DoubleColor color = GetColor(pos.X, pos.Y);
+						PixelPos pos = new PixelPos(tile.Left + x, tile.Top + y);
 
-						if (color == DoubleColor.Placeholder)
-							FullRaytracer.AddMiss(pos);
-						else
-							FullRaytracer.AddSample(pos, color);
-
-						Samples++;
-					}
-
-					if (!Stop && FullRaytracer.IsPaused)
-					{
-						Paused = true;
-						FullRaytracer.WaitForResume();
-						Paused = false;
+						for (int i = 0; i < 1; i++)
+						{
+							samples[x, y] = GetColor(pos.X, pos.Y);
+						}
 					}
 				}
+
+				// Break before the tile is submitted so that partial tile updates aren't sent
+				if (Stop)
+					break;
+
+				FullRaytracer.OnTileFinished(tile, samples, stopwatch.Elapsed);
 			}
 
-			Stop = false;
 			Running = false;
 		}
 	}

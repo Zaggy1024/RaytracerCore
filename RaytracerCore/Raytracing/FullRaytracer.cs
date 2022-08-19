@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Threading;
 using System.Linq;
+
+using RaytracerCore;
 
 namespace RaytracerCore.Raytracing
 {
@@ -13,8 +16,19 @@ namespace RaytracerCore.Raytracing
 	/// </summary>
 	public class FullRaytracer
 	{
-		// Whether to randomize the sample order within each range a thread will work in.
-		protected const bool Randomize = true;
+		protected struct ImageUpdate
+		{
+			public Rectangle Tile;
+			public DoubleColor[,] Samples;
+			public TimeSpan Elapsed;
+
+			public ImageUpdate(Rectangle tile, DoubleColor[,] samples, TimeSpan elapsed)
+			{
+				Tile = tile;
+				Samples = samples;
+				Elapsed = elapsed;
+			}
+		}
 
 		protected const int Interval = 100;
 
@@ -22,6 +36,9 @@ namespace RaytracerCore.Raytracing
 		public double Exposure;
 
 		protected int Threads;
+		protected int TilesX;
+		protected int TilesY;
+		protected Rectangle[] Tiles;
 
 		protected SampleSet[,] SampleSets;
 		protected readonly Action<FullRaytracer, string, double, Bitmap> UpdateStatusCallback;
@@ -32,9 +49,14 @@ namespace RaytracerCore.Raytracing
 		protected volatile bool Paused = false;
 		protected readonly List<Raytracer> RunningTracers = new List<Raytracer>();
 
+		protected readonly object NextTileLock = new object();
+		protected volatile int NextTile;
+		protected readonly ConcurrentQueue<ImageUpdate> ImageUpdates = new ConcurrentQueue<ImageUpdate>();
+
+		// Pauses on the update loop to free CPU time.
 		protected EventWaitHandle IntervalWaiter;
-		protected EventWaitHandle MainWaiter;
-		protected EventWaitHandle ChildWaiter;
+		// Pauses until the UI thread unpauses the rendering.
+		protected EventWaitHandle PauseWaiter;
 
 		public readonly Raytracer DebugPathtracer;
 
@@ -44,17 +66,19 @@ namespace RaytracerCore.Raytracing
 		public FullRaytracer(Scene scene, int threads, Action<FullRaytracer, string, double, Bitmap> updateStatus, Action<FullRaytracer, Bitmap> updateDebug)
 		{
 			Scene = scene;
+
 			Threads = threads;
+			TilesY = (int)Math.Floor(Math.Sqrt(threads));
+			TilesX = threads / TilesY;
 
 			UpdateStatusCallback = updateStatus;
 			UpdateDebugCallback = updateDebug;
 
 			IntervalWaiter = new EventWaitHandle(true, EventResetMode.AutoReset);
 
-			MainWaiter = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
-			ChildWaiter = new EventWaitHandle(!Paused, EventResetMode.ManualReset);
+			PauseWaiter = new EventWaitHandle(true, EventResetMode.ManualReset);
 
-			DebugPathtracer = new Raytracer(this, scene, new PixelPos[0]);
+			DebugPathtracer = new Raytracer(this, scene);
 
 			DebugRaycaster = new DebugRaycaster(scene);
 		}
@@ -180,6 +204,30 @@ namespace RaytracerCore.Raytracing
 			return bitmap;
 		}
 
+		/// <summary>
+		/// Add a finished rectangle to the end of the queue.
+		/// </summary>
+		public void OnTileFinished(Rectangle tile, DoubleColor[,] samples, TimeSpan elapsed)
+		{
+			ImageUpdates.Enqueue(new ImageUpdate(tile, samples, elapsed));
+			QueueUpdate();
+		}
+
+		/// <summary>
+		/// Request a new working tile. Will pause the thread until work is available.
+		/// </summary>
+		public Rectangle GetWorkingTile()
+		{
+			lock (NextTileLock)
+			{
+				while (NextTile == 0 && Paused)
+					PauseWaiter.WaitOne();
+				Rectangle tile = Tiles[NextTile];
+				NextTile = (NextTile + 1) % Tiles.Length;
+				return tile;
+			}
+		}
+
 		private void UpdateDebug()
 		{
 			if (DebugChanged)
@@ -196,8 +244,10 @@ namespace RaytracerCore.Raytracing
 		{
 			while (Running) ;
 			RunningTracers.Clear();
+			ImageUpdates.Clear();
 			Stopping = false;
 			Running = true;
+			NextTile = 0;
 
 			UpdateStatus("Preparing scene...", 0);
 			Scene.Prepare();
@@ -218,32 +268,37 @@ namespace RaytracerCore.Raytracing
 			// Prepare camera
 			Scene.Camera.InitRender(w, h);
 
+			Tiles = new Rectangle[TilesX * TilesY];
+
+			// Push tiles to the worker threads
+			for (int x = 0; x < TilesX; x++)
+			{
+				int left = x * w / TilesX;
+				int right = (x + 1) * w / TilesX;
+
+				for (int y = 0; y < TilesY; y++)
+				{
+					int top = y * h / TilesY;
+					int bottom = (y + 1) * h / TilesY;
+
+					Tiles[y * TilesX + x] = Rectangle.FromLTRB(left, top, right, bottom);
+				}
+			}
+
 			Random rand = new Random();
 
 			UpdateStatus("Beginning render...", 0);
 
-			Stopwatch stopwatch = new Stopwatch();
-			stopwatch.Start();
+			TimeSpan totalTime = TimeSpan.Zero;
+			uint totalTiles = 0;
+			ulong totalSamples = 0;
 
-			// Initialize sets of pixels for threads to work with
-			PixelPos[] allPixels = GetPixelRange(new Rectangle(0, 0, w, h));
-
-			if (Randomize)
-				allPixels = allPixels.OrderBy((p) => rand.NextDouble()).ToArray();
-
+			// Create and start worker threads
 			for (int i = 0; i < Threads; i++)
 			{
-				int start = (int)((allPixels.Length / (double)Threads) * i);
-				int end = (int)((allPixels.Length / (double)Threads) * (i + 1));
-				Raytracer tracer = new Raytracer(this, Scene, allPixels[start..end]);
+				Raytracer tracer = new Raytracer(this, Scene);
 				RunningTracers.Add(tracer);
-			}
-
-			// Start threads
-			foreach (Raytracer tracer in RunningTracers)
-			{
-				new Thread(tracer.Render).Start();
-				while (!tracer.Running) ;
+				new Thread(tracer.Render) { Priority = ThreadPriority.BelowNormal }.Start();
 			}
 
 			// Status/image updating loop
@@ -262,45 +317,53 @@ namespace RaytracerCore.Raytracing
 					}
 				}
 
-				bool finishedPausing = RunningTracers.All((t) => t.Paused);
-
-				if (finishedPausing)
-					stopwatch.Stop();
-
 				// Clean up stopped tracers
 				RunningTracers.RemoveAll((t) => t.Stop && !t.Running);
 
 				if (RunningTracers.Count <= 0)
 					break;
 
-				TimeSpan time = stopwatch.Elapsed;
-				ulong samples = 0;
-				foreach (Raytracer tracer in RunningTracers)
-					samples += tracer.Samples;
-				samples = RunningTracers.Aggregate(0UL, (a, b) => a + b.Samples);
-				double perPixel = samples / (double)(w * h);
+				while (ImageUpdates.TryDequeue(out ImageUpdate update))
+				{
+					for (int x = 0; x < update.Tile.Width; x++)
+					{
+						for (int y = 0; y < update.Tile.Height; y++)
+						{
+							DoubleColor color = update.Samples[x, y];
+							PixelPos pixel = new PixelPos(update.Tile.Left + x, update.Tile.Top + y);
+							if (color == DoubleColor.Placeholder)
+								AddMiss(pixel);
+							else
+								AddSample(pixel, color);
+						}
+					}
+
+					totalTime += update.Elapsed;
+					totalTiles++;
+					totalSamples += (ulong)(update.Tile.Width * update.Tile.Height);
+				}
+
+				TimeSpan averageTime = TimeSpan.Zero;
+				if (totalTiles != 0)
+					averageTime = totalTime / Threads;
+
+				double perPixel = totalSamples / (double)(w * h);
+				double samplesPerSecond = perPixel / averageTime.TotalSeconds;
+				// 1000 samples per pixel = 50% progress, but progress never reaches 100%
 				double progress = perPixel / (perPixel + 1000);
 
-				UpdateStatus(
-					string.Format("Elapsed: {0} Samples: {1:N0} {2:N3}/px/sec {3:N2}/px",
-						Util.FormatTimeSpan(time),
-						samples,
-						(samples / time.TotalSeconds) / (w * h),
-						perPixel),
+				UpdateStatus($"Tiles completed: {totalTiles:N0} Average elapsed time: {Util.FormatTimeSpan(averageTime)} " +
+					$"{perPixel:N2}/px {samplesPerSecond:N3}/px/sec",
 					progress);
 
 				UpdateDebug();
 
-				//prevMs = estMs;
-
-				// Wait for all tracers to pause and then pause this thread as well
-				if (finishedPausing)
+				// Wait if we are paused.
+				if (Paused)
 				{
-					// Pause the stopwatch and check for pause, then resume once unblocked
-					MainWaiter.WaitOne();
-
-					if (!Paused)
-						stopwatch.Start();
+					PauseWaiter.WaitOne();
+					if (Paused)
+						PauseWaiter.Reset();
 				}
 
 				IntervalWaiter.WaitOne(Math.Max(0, Interval - (int)sleepTimer.ElapsedMilliseconds));
@@ -311,16 +374,10 @@ namespace RaytracerCore.Raytracing
 
 		public bool IsRunning => Running;
 
-		public void WaitForResume()
-		{
-			ChildWaiter.WaitOne();
-		}
-
 		public void Pause()
 		{
 			Paused = true;
-			MainWaiter.Reset();
-			ChildWaiter.Reset();
+			PauseWaiter.Reset();
 		}
 
 		public void QueueUpdate()
@@ -328,11 +385,10 @@ namespace RaytracerCore.Raytracing
 			// Skip the interval wait in the main thread to update ASAP.
 			IntervalWaiter.Set();
 
-			// If we're paused, unblock the main thread and then block it again when an update has finished.
+			// If we're paused, unblock the main thread, it will be blocked again once a loop completes.
 			if (Paused)
 			{
-				MainWaiter.Set();
-				MainWaiter.Reset();
+				PauseWaiter.Set();
 			}
 		}
 
@@ -347,8 +403,7 @@ namespace RaytracerCore.Raytracing
 		public void Resume()
 		{
 			Paused = false;
-			MainWaiter.Set();
-			ChildWaiter.Set();
+			PauseWaiter.Set();
 		}
 
 		public void Stop()
