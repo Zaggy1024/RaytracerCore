@@ -217,6 +217,9 @@ namespace RaytracerCore.Raytracing
 
 		public Bitmap RenderDebug()
 		{
+			Stopwatch timer = new Stopwatch();
+			timer.Start();
+
 			int w = Scene.Width;
 			int h = Scene.Height;
 			Camera camera = Scene.Camera;
@@ -231,36 +234,32 @@ namespace RaytracerCore.Raytracing
 				BitmapData data = output.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 				int* values = (int*)data.Scan0.ToPointer();
 
-				for (int x = 0; x < w; x++)
+				for (int y = 0; y < h; y++)
 				{
-					for (int y = 0; y < h; y++)
+					for (int x = 0; x < w; x++)
 					{
 						Ray ray = camera.GetRay(x, y).Offset(camera.imagePlane);
-						values[(y * data.Width) + x] = GetColor(ray).ToArgb();
-					}
-				}
+						Color color = GetColor(ray);
 
-				int count = w * h;
+						switch (Mode)
+						{
+							case DisplayMode.BoundingVolumes:
+								double a = Math.Sqrt(color.A / (double)MaxBoundingBoxes);
+								color = Color.FromArgb((int)(a * 255), color);
+								break;
+							default:
+								color = Color.FromArgb(color.A / 2, color);
+								break;
+						}
 
-				for (int i = 0; i < count; i++)
-				{
-					Color color = Color.FromArgb(values[i]);
-
-					switch (Mode)
-					{
-						case DisplayMode.BoundingVolumes:
-							double a = color.A / (double)MaxBoundingBoxes;
-							a = Math.Sqrt(a);
-							values[i] = Color.FromArgb((int)(a * 255), color).ToArgb();
-							break;
-						default:
-							values[i] = Color.FromArgb(color.A / 2, color).ToArgb();
-							break;
+						values[(y * data.Width) + x] = color.ToArgb();
 					}
 				}
 
 				output.UnlockBits(data);
 			}
+
+			Trace.WriteLine($"Debug render took {timer.Elapsed.TotalMilliseconds}ms.");
 
 			return output;
 		}
