@@ -1,4 +1,5 @@
 size 700 700
+#size 1200 1200
 background 0 0 0 0
 recursion 20
 recursion 10
@@ -17,6 +18,7 @@ camera -2.8 2.8 -1, 0 0 -1, 0 0 -1, 90
 camera 0 0 -4, 0 0 -1, -1 0 0, 120
 camera 1.9 0 -1.95, 0 0 -1.95, 0 0 -1, 90
 camera 0 0 1, 0 0 0, 1 0 0, 120
+camera 2.8 2.8 -1, 0 0 -1, 0 0 -1, 90
 
 output bounce.png
 
@@ -27,8 +29,8 @@ point 0 0 -1.9 1 1 1
 diffuse 0 0 0
 specular 0 0 0
 emission 5 5 5
-#cube 0 0 -1.95 .75 .75 0.1 not -z
-cube 0 0 -1.975 .5 1.5 0.05 not -z
+cube 0 0 -1.95 .75 .75 0.1 not -z
+#cube 0 0 -1.975 .5 1.5 0.05 not -z
 pushtransform
 translate 0 0 -1.95
 scale .75 .75 0.1
@@ -37,12 +39,14 @@ poptransform
 emission 0 0 0
 
 
-shininess 40
+shininess 250
 
 twosided false
 
-cube 0 0 -1 4 4 2
 invert true
+diffuse .9 .9 .9
+specular .2 .2 .2
+cube 0 0 -1 4 4 2
 
 # close right
 diffuse .1 1 .1
@@ -71,21 +75,15 @@ specular .4 .4 .9
 shininess 1e3
 instance z
 
+shininess 250
 invert false
+twosided true
 
 
 # corner cutout
-twosided true
 diffuse .9 .9 .9
 specular .2 .2 .2
 cube -1.5 1 -1 1 2 2 only +x -y
-twosided false
-
-
-
-
-twosided true
-
 
 sphere -1 -1.25 -1 .5
 
@@ -93,15 +91,16 @@ sphere -1 -1.25 -1 .5
 pushtransform
 translate 1.25 0 0
 rotate 0 0 1 45
-cube 0 0 -.375 .75 .75 .75 not +z
+#cube 0 0 -.375 .75 .75 .75 not +z
+cube 0 0 -.375 .75 .75 .75 all
 poptransform
 
 # glass
-diffuse .1 .1 .1
-specular .6 .6 .6
+#diffuse .1 .1 .1
 diffuse 0 0 0
-specular 0 0 0
 shininess 1e5
+specular .9 .9 .9	# Specular should match refraction
+#emission .5 .2 .2
 refraction .9 .9 .9, 1.52
 
 # outside

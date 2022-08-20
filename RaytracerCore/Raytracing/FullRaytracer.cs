@@ -352,7 +352,7 @@ namespace RaytracerCore.Raytracing
 				// 1000 samples per pixel = 50% progress, but progress never reaches 100%
 				double progress = perPixel / (perPixel + 1000);
 
-				UpdateStatus($"Tiles completed: {totalTiles:N0} Average elapsed time: {Util.FormatTimeSpan(averageTime)} " +
+				UpdateStatus($"Tiles: {totalTiles:N0} Elapsed: {Util.FormatTimeSpan(averageTime)} " +
 					$"{perPixel:N2}/px {samplesPerSecond:N3}/px/sec",
 					progress);
 
